@@ -1,24 +1,27 @@
+import {AsyncLocalStorage} from 'node:async_hooks';
 import {fail} from './domain.js';
-let pool;
-export async function sql(query,args=[]){
- if(!process.env.SLARK_DATABASE_URL)fail('Configure SLARK_DATABASE_URL para conectar os quartetos da Slark.',503);
- if(!pool){const {Pool}=await import('pg');pool=new Pool({connectionString:process.env.SLARK_DATABASE_URL,max:3});}
- return (await pool.query(query,args)).rows;
+const context=new AsyncLocalStorage();
+export const withSlarkSession=(token,fn)=>context.run(token,fn);
+function credentials(){if(!process.env.SUPABASE_URL||!process.env.SUPABASE_PUBLISHABLE_KEY)fail('Autenticação da Slark não configurada.',503);const token=context.getStore();if(!token)fail('Entre novamente com sua conta da Slark.',401);return {apikey:process.env.SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'};}
+async function rest(table,query={},method='GET',body){
+ const url=new URL(process.env.SUPABASE_URL+'/rest/v1/'+table);for(const [k,v] of Object.entries(query))url.searchParams.set(k,String(v));
+ const r=await fetch(url,{method,headers:{...credentials(),Prefer:'return=representation'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});const data=await r.json();if(!r.ok)fail(r.status===401?'Sua sessão expirou. Entre novamente.':'Sua conta não tem permissão para esta operação na Slark.',r.status===401?401:403);return data;
 }
-export async function teacherInfo(id){const rows=await sql("SELECT id,nome FROM usuarios WHERE id=$1 AND perfil='professor'",[id]);if(!rows[0])fail('Acesso exclusivo de professor da Slark.',403);return rows[0];}
-export async function catalog(id){await teacherInfo(id);return await sql("SELECT id,titulo,sala_id FROM trilhas WHERE professor_id=$1 ORDER BY criada_em DESC",[id]);}
+export async function teacherInfo(id){
+ const r=await fetch(process.env.SUPABASE_URL+'/auth/v1/user',{headers:credentials(),signal:AbortSignal.timeout(10000)});const user=await r.json();if(!r.ok||user.id!==id)fail('Sessão da Slark inválida ou expirada.',401);
+ const rows=await rest('usuarios',{select:'id,nome,perfil,escola_id',id:'eq.'+id});const p=rows[0];if(!p||!['professor','admin_slark','diretor'].includes(p.perfil))fail('O painel é destinado a professores, diretores e administradores. Alunos entram pelo PIN do quarteto.',403);return p;
+}
+export async function catalog(id){const user=await teacherInfo(id);const q={select:'id,titulo,sala_id',order:'criada_em.desc'};if(user.perfil==='professor')q.professor_id='eq.'+id;if(user.perfil==='diretor'){if(!user.escola_id)fail('Conta sem escola vinculada.',403);q.escola_id='eq.'+user.escola_id;}return rest('trilhas',q);}
+async function trailFor(id,trailId){const available=await catalog(id);const trail=available.find(t=>t.id===trailId);if(!trail?.sala_id)fail('Trilha fora do seu acesso ou sem turma.',403);return trail;}
 export async function loadTeams(id,trailId){
- const trails=await sql('SELECT id,titulo,sala_id FROM trilhas WHERE id=$1 AND professor_id=$2',[trailId,id]);
- if(!trails[0]?.sala_id)fail('Trilha não encontrada, sem turma ou pertencente a outro professor.',403);
- const teams=await sql('SELECT id,nome FROM times WHERE sala_id=$1 ORDER BY nome',[trails[0].sala_id]);
- const members=await sql('SELECT tm.time_id,a.id,a.nome FROM time_membros tm JOIN alunos a ON a.id=tm.aluno_id JOIN times t ON t.id=tm.time_id WHERE t.sala_id=$1 AND a.sala_id=$1',[trails[0].sala_id]);
- const result=teams.map(t=>({id:t.id,name:t.nome,members:members.filter(m=>m.time_id===t.id).map(m=>({id:m.id,name:m.nome}))})).filter(t=>t.members.length===4);
- if(!result.length)fail('Nenhum quarteto de quatro integrantes está definido nesta turma. Organize os times no Slark primeiro.');
- const ids=result.flatMap(t=>t.members.map(m=>m.id));if(new Set(ids).size!==ids.length)fail('Há estudantes em mais de um quarteto. Corrija os times no Slark antes de abrir a sala.');
- return {trail:trails[0],teams:result};
+ const trail=await trailFor(id,trailId);const teams=await rest('times',{select:'id,nome',sala_id:'eq.'+trail.sala_id});
+ if(!teams.length)fail('Defina os quartetos da turma na Slark primeiro.');
+ const members=await rest('time_membros',{select:'time_id,alunos(id,nome,sala_id)',time_id:'in.('+teams.map(t=>t.id).join(',')+')'});
+ const result=teams.map(t=>({id:t.id,name:t.nome,members:members.filter(m=>m.time_id===t.id&&m.alunos?.sala_id===trail.sala_id).map(m=>({id:m.alunos.id,name:m.alunos.nome}))})).filter(t=>t.members.length===4);
+ if(!result.length)fail('Nenhum quarteto de quatro integrantes está definido na turma ou visível para sua conta.');
+ const ids=result.flatMap(t=>t.members.map(m=>m.id));if(new Set(ids).size!==ids.length)fail('Há estudantes em mais de um quarteto. Corrija os times na Slark.');return {trail,teams:result};
 }
 export async function saveObservation({teacher,student,text,trailId}){
- const valid=await sql('SELECT a.id FROM alunos a JOIN trilhas t ON t.sala_id=a.sala_id WHERE a.id=$1 AND t.id=$2 AND t.professor_id=$3',[student,trailId,teacher]);
- if(!valid.length)fail('Aluno fora da turma desta trilha.',403);
- const rows=await sql('INSERT INTO observacoes (aluno_id,professor_id,texto) VALUES ($1,$2,$3) RETURNING id',[student,teacher,text]);return rows[0].id;
+ const trail=await trailFor(teacher,trailId);const students=await rest('alunos',{select:'id',id:'eq.'+student,sala_id:'eq.'+trail.sala_id});if(!students.length)fail('Aluno fora da turma.',403);
+ const rows=await rest('observacoes',{},'POST',{aluno_id:student,professor_id:teacher,texto:text});return rows[0].id;
 }

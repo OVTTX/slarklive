@@ -6,7 +6,7 @@ A versão 2 substitui o fluxo anterior de questionário de características e mi
 
 ## Jornada
 
-1. O professor entra em `/admin` com e-mail e senha da Slark. O servidor autentica no Supabase e confirma `usuarios.perfil = professor`.
+1. O professor entra em `/admin` com e-mail e senha da Slark. O servidor autentica no mesmo Supabase da Slark e aceita os perfis professor, diretor e admin_slark. Alunos continuam entrando pelo PIN do quarteto.
 2. Escolhe uma de suas trilhas e informa o capítulo. No editor, adiciona slides e quizzes, edita, exclui ou reordena itens. Cada quiz tem quatro alternativas, gabarito, explicação e tempo entre 5 e 300 segundos.
 3. Ao criar a sala, o servidor carrega `times` e `time_membros` da turma da trilha. Somente times com exatamente quatro integrantes válidos participam. Integrantes duplicados entre quartetos são rejeitados. Não altera os times do Slark.
 4. A sala gera um PIN. Em `/professor?pin=...`, o professor vê os códigos privados de cada quarteto e abre `/live?pin=...` no telão. Os alunos usam PIN + código do seu quarteto, sem conta ChatGPT. Um dispositivo controla a resposta da equipe; o token permite retomar na mesma aba.
@@ -19,8 +19,7 @@ A versão 2 substitui o fluxo anterior de questionário de características e mi
 Node.js >=22. `npm ci`. Copie `.env.example` para `.env` e preencha **somente no servidor**:
 
 - `DATABASE_URL`: PostgreSQL para o estado transacional das salas. Pode ser banco separado.
-- `SLARK_DATABASE_URL`: conexão PostgreSQL da Slark, com pool/TLS conforme o provedor. O servidor lê as tabelas existentes e insere observações; não muda o schema da Slark.
-- `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`: autenticação da conta do professor. Nunca use service role no frontend.
+- `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`: mesmo projeto Supabase da Slark (`isnurzrircathvvmdtzc`). Autenticação e consultas usam a sessão do usuário, com RLS; não há chave service_role ou acesso amplo adicional.
 - `SESSION_SECRET`: segredo aleatório com pelo menos 32 caracteres.
 
 Execute `node --env-file=.env server.js`. Abra http://localhost:3000. `npm test` testa API e domínio sem banco externo. Na ausência de `DATABASE_URL`, o servidor local persiste em `.data/state.json`. Na Vercel a conexão de estado é obrigatória.
@@ -45,10 +44,18 @@ Cookie administrativo HttpOnly, SameSite=Strict, Secure na Vercel, expiração e
 
 Códigos e tokens privados das equipes não aparecem no telão; tampouco nomes individuais ou observações. O gabarito e a explicação ficam ocultos na API dos alunos até a revelação. Resultados são liberados após revelar/avançar/encerrar. A primeira resposta válida do quarteto é definitiva, inclusive sob envios simultâneos.
 
-A composição de cada quarteto é uma fotografia da base no momento em que a sala é criada. Para refletir mudanças, crie uma nova sala. Times com menos ou mais de quatro integrantes ficam de fora. A integração considera o vínculo `trilhas.professor_id`; regras de co-docência não estão implementadas. Antes de publicar com dados reais, valide o schema e as permissões na instância da escola: o teste automatizado usa a demonstração, sem acesso ao banco real.
+A composição de cada quarteto é uma fotografia da base no momento em que a sala é criada. Para refletir mudanças, crie uma nova sala. Times com menos ou mais de quatro integrantes ficam de fora. Professores veem suas trilhas, diretores ficam restritos à escola e admin_slark lê conforme as políticas existentes. Nenhuma política do Supabase é ampliada. Algumas operações podem continuar negadas pela RLS (por exemplo, escrita de observações por administradores). Regras de co-docência não estão implementadas. Antes de publicar com dados reais, valide o schema e as permissões na instância da escola: o teste automatizado usa a demonstração, sem acesso ao banco real.
 
 O estado usa uma linha JSON transacional e polling de 2s: adequado ao protótipo, sujeito a contenção para muitas salas simultâneas. Rate limit de login por instância, sem WAF distribuído. Observações são inseridas no banco Slark antes de registrar o recibo local; se houver falha entre essas operações, uma tentativa repetida pode duplicar o texto. Não há análise de IA no Live, upload de PPTX/PDF ou importação de slides externos; slides são criados no editor de título/texto.
 
 ## Verificação
 
 `npm test`: valida sequências nos três modos, sigilo do gabarito, tempo e bloqueio de respostas, envio simultâneo único, controle exclusivo do professor, observação de aluno válido e privacidade do telão. Validações de banco real e visual no navegador devem ser feitas na hospedagem configurada.
+
+## Identidade e acesso compartilhado
+
+A Plus Jakarta Sans variável (200–800, normal e itálico, conjunto Latin com acentos do português) é servida pelo próprio site, com licença OFL em `public/assets/fonts/OFL.txt`. A logo vetorial fornecida pelo usuário é `public/assets/slark-live.svg`, preservando cores e gradientes.
+
+O login usa e-mail e senha que já existem no Supabase da Slark. Senhas não são copiadas ou redefinidas. O access token fica em cookie HttpOnly e é validado por `/auth/v1/user`; as consultas à Data API respeitam RLS e não usam conexão privilegiada. A sessão expira em até uma hora, sem refresh automático. Testes de login usam servidor simulado; não foi utilizada a senha de nenhuma conta real.
+
+Estado de implantação: em 19/10/2026, a criação do projeto Vercel `slarklive` foi negada pela API (403, sem permissão). Ainda é necessário criar/importar o projeto com uma conta autorizada e configurar SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SESSION_SECRET e DATABASE_URL. O cadastro e as senhas no Supabase não foram alterados.
