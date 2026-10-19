@@ -24,3 +24,9 @@ header.topbar{width:calc(100% - 64px);max-width:1600px;margin:24px auto 0;paddin
 @media(max-width:900px){header.topbar{width:calc(100% - 32px);padding:18px 24px}.topbar nav{gap:22px;font-size:20px}.topbar .brand img{width:120px}.topbar .brand img.brand-orbits{width:24px;height:24px}.hero{gap:30px}}
 @media(max-width:700px){header.topbar{margin-top:16px;min-height:64px;padding:16px;gap:12px}.topbar nav{gap:14px;font-size:14px}.topbar .brand img{width:80px}.topbar .brand img.brand-orbits{width:18px;height:18px}.hero{grid-template-columns:1fr;gap:26px}.hero-entry .card{margin:0}}
 @media(max-width:380px){.topbar nav{gap:10px;font-size:12px}.topbar .brand img{width:65px}.topbar .brand img.brand-orbits{width:15px;height:15px}}
+
+/* Ajuste fino: barra superior um pouco mais compacta. */
+header.topbar{min-height:72px;padding:15px 30px}.topbar nav{font-size:clamp(17px,2vw,27px)}.topbar .brand img{width:140px}.topbar .brand img.brand-orbits{width:28px;height:28px}
+@media(max-width:900px){header.topbar{padding:15px 22px}.topbar nav{font-size:18px}.topbar .brand img{width:112px}.topbar .brand img.brand-orbits{width:23px;height:23px}}
+@media(max-width:700px){header.topbar{min-height:58px;padding:13px 16px}.topbar nav{font-size:13px}.topbar .brand img{width:76px}.topbar .brand img.brand-orbits{width:17px;height:17px}}
+@media(max-width:380px){.topbar nav{font-size:12px}.topbar .brand img{width:62px}.topbar .brand img.brand-orbits{width:14px;height:14px}}
