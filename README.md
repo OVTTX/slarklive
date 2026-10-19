@@ -1,34 +1,54 @@
-# Slark Live
+# Slark Live · versão 2
 
-**Cada mente é um universo.** Experiência FeCEAP de 3–5 minutos com salas por PIN, descoberta de características por regras, Time demonstrativo complementar, missão Runaway e painel ao vivo. Repositório independente do Slark principal.
+**Cada mente é um universo.** Salas ao vivo no fim de cada capítulo das trilhas Runaway: somente slides, somente quizzes ou uma sequência mesclada. O professor apresenta e os quartetos já definidos na Slark discutem e enviam uma resposta por pergunta.
 
-## Executar
+A versão 2 substitui o fluxo anterior de questionário de características e missão individual. Nenhum quarteto real é sorteado ou criado aqui.
 
-Node.js 22 ou superior. `npm install`, depois configure `ADMIN_PASSWORD` e `SESSION_SECRET` (mínimo 32 caracteres) no ambiente. Execute `npm run dev` e abra http://localhost:3000. Para carregar um arquivo `.env` com Node: `node --env-file=.env server.js`. Copie `.env.example` e preencha localmente; nunca envie senhas ao GitHub.
+## Jornada
 
-O desenvolvimento usa `.data/state.json` quando não existe `DATABASE_URL`. Essa persistência atende vários navegadores conectados ao mesmo servidor local; não depende de localStorage para compartilhar salas. Na Vercel, configure obrigatoriamente um PostgreSQL em `DATABASE_URL`. A aplicação cria a tabela `slarklive_state` automaticamente; o usuário do banco precisa dessa permissão. Use banco dedicado e conexão com pool/TLS conforme o provedor. Não desative validação de certificado.
+1. O professor entra em `/admin` com e-mail e senha da Slark. O servidor autentica no Supabase e confirma `usuarios.perfil = professor`.
+2. Escolhe uma de suas trilhas e informa o capítulo. No editor, adiciona slides e quizzes, edita, exclui ou reordena itens. Cada quiz tem quatro alternativas, gabarito, explicação e tempo entre 5 e 300 segundos.
+3. Ao criar a sala, o servidor carrega `times` e `time_membros` da turma da trilha. Somente times com exatamente quatro integrantes válidos participam. Integrantes duplicados entre quartetos são rejeitados. Não altera os times do Slark.
+4. A sala gera um PIN. Em `/professor?pin=...`, o professor vê os códigos privados de cada quarteto e abre `/live?pin=...` no telão. Os alunos usam PIN + código do seu quarteto, sem conta ChatGPT. Um dispositivo controla a resposta da equipe; o token permite retomar na mesma aba.
+5. O professor inicia, avança slides, abre as perguntas e encerra/revela o gabarito. Uma pergunta não pode ser reaberta; cada quarteto pode responder uma vez. O relógio é validado no servidor. O quiz não avança automaticamente: o professor controla a discussão.
+6. Respostas e tempos são registrados por quarteto. Não há ranking público nem atribuição automática de características individuais.
+7. O professor seleciona o aluno, a característica observada e descreve uma evidência. O registro é salvo em `observacoes` da Slark, com autoria do professor e referência ao capítulo. Não altera automaticamente a característica ou o selo do estudante; a análise da Luna continua no fluxo de Observações da Slark.
+
+## Configuração e execução
+
+Node.js >=22. `npm ci`. Copie `.env.example` para `.env` e preencha **somente no servidor**:
+
+- `DATABASE_URL`: PostgreSQL para o estado transacional das salas. Pode ser banco separado.
+- `SLARK_DATABASE_URL`: conexão PostgreSQL da Slark, com pool/TLS conforme o provedor. O servidor lê as tabelas existentes e insere observações; não muda o schema da Slark.
+- `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`: autenticação da conta do professor. Nunca use service role no frontend.
+- `SESSION_SECRET`: segredo aleatório com pelo menos 32 caracteres.
+
+Execute `node --env-file=.env server.js`. Abra http://localhost:3000. `npm test` testa API e domínio sem banco externo. Na ausência de `DATABASE_URL`, o servidor local persiste em `.data/state.json`. Na Vercel a conexão de estado é obrigatória.
+
+Para uma demonstração sem dados reais: `ENABLE_DEMO=1`, configure `ADMIN_PASSWORD`, deixe o e-mail em branco no login. Os dois quartetos e oito alunos são fictícios, sempre identificados com “MODO DEMONSTRAÇÃO — DADOS FICTÍCIOS”. O modo não lê ou escreve dados na Slark. Não existe senha padrão.
 
 ## Vercel
 
-Importe `OVTTX/slarklive` como novo projeto, selecione **Other**, sem comando de build e com saída `public`. O `vercel.json` contém as rotas de SPA e API Node. Defina `DATABASE_URL`, `ADMIN_PASSWORD` e `SESSION_SECRET` antes de implantar. Nenhum segredo deve usar prefixo público. Sem banco ou credenciais, a interface explica a indisponibilidade; não existe senha padrão ou falso login. Este repositório não altera o projeto `slark-kvy7`.
+Importe este repositório como novo projeto, framework Other, saída `public`, sem comando de build. Configure as variáveis acima antes de implantar. `vercel.json` define API Node, rotas e cabeçalhos. A implantação não foi realizada por este commit. Não reutilize o projeto de produção da Slark principal.
 
-## Operação
+O armazenamento cria `slarklive_state`, com RLS habilitada e sem políticas públicas; a conexão de servidor precisa de permissões de criação/leitura/escrita e acesso apropriado ao RLS. Use credencial de servidor e não a exponha ao navegador. Consultas existentes da Slark têm filtros explícitos por professor, trilha, turma e aluno. A conexão deve usar TLS com validação de certificado.
 
-1. Entre em `/admin`, crie uma sala e escolha Participantes ou **Avaliador · 1 pessoa**. Duração padrão: 25 minutos (configurável de 1 a 60; para apresentação, use 20–30).
-2. Clique em **Iniciar sessão** e exiba o PIN. O público usa `/` ou `/sala`, sem conta ou autenticação ChatGPT. O modo avaliador admite um único participante, com inscrição atômica no banco. O mesmo navegador pode retomar a sala com seu token.
-3. O participante percorre `/experiencia`, `/descoberta`, `/universo`, `/times`, `/missao` e `/conquista`. São cinco perguntas de quatro alternativas, com voltar, progresso e cálculo determinístico. Todas as características podem predominar; empates seguem a ordem Observador, Detalhista, Criativo, Raciocínio lógico. Não é diagnóstico nem avaliação por IA.
-4. O Time reúne o participante e três estudantes explicitamente fictícios, um de cada outra característica. Não representa agrupamento de participantes reais.
-5. Missão: seca reduz o pasto e o leite; responder em 2–3 frases sobre atividade econômica, efeito na merenda e ação justificada. A equipe vê e corrige em `/admin` (também `/dashboard` e `/salas`). A devolutiva aparece ao atualizar a conquista. Não há correção automática de texto nem ranking.
-6. Abra `/live?pin=123456` no telão. Somente dados anônimos/agregados, PIN e cronômetro, atualização de 3 em 3 segundos. Sem controles administrativos. Intervalo de 30 minutos; ao terminar o intervalo, o administrativo inicia a próxima sessão. O botão reiniciar exige confirmação e apaga as entregas da sala.
+## Integração nas trilhas do Slark
+
+A alteração complementar do app Slark acrescenta `conteudo.liveRoom.pin` aos blocos de capítulo existentes. O professor preenche o campo ao editar o capítulo; o aluno vê um cartão no fim do conteúdo. Configure `VITE_SLARK_LIVE_URL=https://<dominio-do-slark-live>` no projeto Vercel do Slark para o botão de entrada. Apenas esse endereço de ambiente é utilizado, nunca URLs arbitrárias fornecidas por alunos.
+
+Não é necessária migração para o campo: `trilha_blocos.conteudo` já é JSONB. O PIN não substitui o código privado do quarteto. O catálogo do Live é restrito às trilhas do professor autenticado. A publicação do PIN na trilha é manual, como definido na proposta.
 
 ## Segurança e limites
 
-Sessão administrativa assinada, cookie HttpOnly/SameSite e Secure na Vercel, validação no servidor, proteção de origem, consultas parametrizadas e transação com bloqueio para as vagas. Não coleta nomes, e-mails ou senhas de estudantes. Tokens de participante ficam no sessionStorage; quem obtiver o token pode acessar aquela entrega. Não compartilhe tokens. Evite dados pessoais no texto da missão.
+Cookie administrativo HttpOnly, SameSite=Strict, Secure na Vercel, expiração em 1h; assinatura HMAC; validação do perfil do professor em cada solicitação autenticada. O acesso à sala é restrito ao seu criador. Credenciais de professor são verificadas pelo Supabase, sem gravar a senha. Não há refresh automático do login; após expiração, entre novamente.
 
-A implementação usa uma linha JSON transacional no PostgreSQL para simplificar a demonstração; é adequada ao protótipo de feira, não ao ecossistema escolar completo. Rate limit de login é por instância; para exposição em escala, complemente com proteção centralizada/WAF. Fechar uma sessão impede novos envios; reiniciar apaga dados. A senha administrativa é compartilhada pela equipe, sem gestão de contas individuais. O telão permite consulta agregada a quem tiver o PIN. O administrativo pode alternar o telão para números ilustrativos, sempre com a faixa “MODO DEMONSTRAÇÃO — DADOS FICTÍCIOS”. Essa alternância não altera participantes nem entregas reais.
+Códigos e tokens privados das equipes não aparecem no telão; tampouco nomes individuais ou observações. O gabarito e a explicação ficam ocultos na API dos alunos até a revelação. Resultados são liberados após revelar/avançar/encerrar. A primeira resposta válida do quarteto é definitiva, inclusive sob envios simultâneos.
 
-Tipografia: Plus Jakarta Sans quando instalada, com fallback system-ui, sem dependência externa. Paleta institucional #000026, #0B0697, #0651C3 e branco. As características não são rótulos permanentes.
+A composição de cada quarteto é uma fotografia da base no momento em que a sala é criada. Para refletir mudanças, crie uma nova sala. Times com menos ou mais de quatro integrantes ficam de fora. A integração considera o vínculo `trilhas.professor_id`; regras de co-docência não estão implementadas. Antes de publicar com dados reais, valide o schema e as permissões na instância da escola: o teste automatizado usa a demonstração, sem acesso ao banco real.
+
+O estado usa uma linha JSON transacional e polling de 2s: adequado ao protótipo, sujeito a contenção para muitas salas simultâneas. Rate limit de login por instância, sem WAF distribuído. Observações são inseridas no banco Slark antes de registrar o recibo local; se houver falha entre essas operações, uma tentativa repetida pode duplicar o texto. Não há análise de IA no Live, upload de PPTX/PDF ou importação de slides externos; slides são criados no editor de título/texto.
 
 ## Verificação
 
-`npm test` executa testes de resultados e agregação anônima. A API pode ser verificada com `node --test tests/api.test.js`; o teste inicia servidor isolado e verifica autenticação, reserva simultânea da vaga de avaliador, missão e correção. Não há dependência de IA nem chave OpenAI.
+`npm test`: valida sequências nos três modos, sigilo do gabarito, tempo e bloqueio de respostas, envio simultâneo único, controle exclusivo do professor, observação de aluno válido e privacidade do telão. Validações de banco real e visual no navegador devem ser feitas na hospedagem configurada.

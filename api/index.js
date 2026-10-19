@@ -1,12 +1,17 @@
 import {randomInt,randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 import {transact} from './store.js';
-import {profile,publicRoom} from './domain.js';
+import {fail,validateDeck,summary,teacherView,answer,results,traits} from './domain.js';
+import {teacherInfo,catalog,loadTeams,saveObservation} from './slark.js';
 const attempts=new Map();
-function fail(message,status=400){throw Object.assign(new Error(message),{status});}
 function sign(x){return createHmac('sha256',process.env.SESSION_SECRET||'').update(x).digest('hex');}
 function equal(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
-function admin(req){const value=(req.headers.cookie||'').split('; ').find(x=>x.startsWith('slark_admin='))?.slice(12)||'';const [exp,sig]=value.split('.');return !!process.env.SESSION_SECRET&&Number(exp)>Date.now()&&equal(sig||'',sign(exp||''));}
-async function body(req){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(s.length>12000)fail('Envio muito grande.',413);}try{return JSON.parse(s||'{}')}catch{fail('Dados inválidos.');}}
+function identity(req){
+ const value=(req.headers.cookie||'').split('; ').find(x=>x.startsWith('slark_admin='))?.slice(12)||'';
+ const [id,exp,sig]=value.split('.');
+ return process.env.SESSION_SECRET?.length>=32&&Number(exp)>Date.now()&&equal(sig||'',sign(`${id}.${exp}`))?id:null;
+}
+function setSession(res,id){const exp=String(Date.now()+3600000),payload=`${id}.${exp}`;res.setHeader('Set-Cookie',`slark_admin=${payload}.${sign(payload)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600${process.env.VERCEL?'; Secure':''}`);}
+async function body(req){if(req.body&&typeof req.body==='object')return req.body;let s='';for await(const c of req){s+=c;if(s.length>100000)fail('Envio muito grande.',413);}try{return JSON.parse(s||'{}')}catch{fail('Dados inválidos.');}}
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json; charset=utf-8');
  try{
@@ -14,40 +19,73 @@ export default async function handler(req,res){
  if(req.method==='POST'&&req.headers.origin&&req.headers.origin!==`https://${req.headers.host}`&&req.headers.origin!==`http://${req.headers.host}`)fail('Origem não permitida.',403);
  if(!['GET','POST'].includes(req.method))fail('Método não permitido.',405);
  if(action==='login'&&req.method==='POST'){
-  if(!process.env.ADMIN_PASSWORD||!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32)fail('Configure ADMIN_PASSWORD e SESSION_SECRET (32 caracteres ou mais).',503);
+  if(!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32)fail('Configure SESSION_SECRET (32 caracteres ou mais).',503);
   const ip=req.headers['x-forwarded-for']?.split(',')[0]||req.socket?.remoteAddress||'unknown';const now=Date.now(),a=attempts.get(ip)||{n:0,until:now+600000};if(a.until<now){a.n=0;a.until=now+600000;}if(a.n>=8)fail('Muitas tentativas. Aguarde dez minutos.',429);a.n++;attempts.set(ip,a);
-  if(!equal(String(b.password||''),process.env.ADMIN_PASSWORD))fail('Senha incorreta.',401);attempts.delete(ip);const exp=String(now+8*3600000);res.setHeader('Set-Cookie',`slark_admin=${exp}.${sign(exp)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.VERCEL?'; Secure':''}`);return res.end(JSON.stringify({ok:true}));
+  let id;
+  if(b.email){
+   if(!process.env.SUPABASE_URL||!process.env.SUPABASE_PUBLISHABLE_KEY)fail('Configure a autenticação da Slark no servidor.',503);
+   const response=await fetch(process.env.SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:process.env.SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:String(b.email),password:String(b.password||'')}),signal:AbortSignal.timeout(10000)});
+   const auth=await response.json();if(!response.ok||!auth.user?.id)fail('E-mail ou senha inválidos.',401);await teacherInfo(auth.user.id);id=auth.user.id;
+  }else{
+   if(process.env.ENABLE_DEMO!=='1'||!process.env.ADMIN_PASSWORD||!equal(String(b.password||''),process.env.ADMIN_PASSWORD))fail('E-mail e senha do professor são necessários.',401);id='demo';
+  }
+  attempts.delete(ip);setSession(res,id);return res.end(JSON.stringify({ok:true}));
  }
  if(action==='logout'){res.setHeader('Set-Cookie','slark_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return res.end('{}');}
- if(action==='session')return res.end(JSON.stringify({admin:admin(req)}));
- const result=await transact(s=>{
- if(action==='rooms'){if(!admin(req))fail('Entre como administrativo.',401);return Object.values(s.rooms).map(publicRoom);}
+ const owner=identity(req);
+ if(action==='session')return res.end(JSON.stringify({admin:!!owner,demo:owner==='demo',demoEnabled:!process.env.ENABLE_DEMO!=='1'}));
+ if(owner&&owner!=='demo')await teacherInfo(owner);
+ if(action==='catalog'){if(!owner)fail('Entre como professor.',401);return res.end(JSON.stringify(owner==='demo'?[{id:'demo-trail',titulo:'Runaway · Produção e consumo',sala_id:'demo'}]:await catalog(owner)));}
+ let imported;
+ if(action==='create'){
+  if(!owner)fail('Entre como professor.',401);
+  if(owner==='demo')imported={trail:{id:'demo-trail',titulo:'Trilha demonstrativa'},teams:[0,1].map(i=>({id:`demo-${i}`,name:`Quarteto ${i+1}`,members:[0,1,2,3].map(j=>({id:`demo-${i}-${j}`,name:`Estudante fictício ${i*4+j+1}`}))}))};
+  else imported=await loadTeams(owner,String(b.trailId||''));
+ }
+ const result=await transact(async s=>{
+ const own=r=>{if(!owner||r.owner!==owner)fail('Sala de outro professor ou acesso não autorizado.',403);};
+ const rooms=Object.values(s.rooms).filter(r=>r.version===2);
+ if(action==='rooms'){if(!owner)fail('Entre como professor.',401);return rooms.filter(r=>r.owner===owner).map(summary);}
  if(action==='create'&&req.method==='POST'){
-  if(!admin(req))fail('Acesso administrativo necessário.',401);let pin;do{pin=String(randomInt(100000,1000000));}while(s.rooms[pin]);const minutes=Number(b.minutes??25);if(!Number.isFinite(minutes)||minutes<1||minutes>60)fail('Duração entre 1 e 60 minutos.');s.rooms[pin]={pin,name:String(b.name||'Sessão FeCEAP').slice(0,60),mode:b.mode==='evaluator'?'evaluator':'group',status:'ready',minutes,endsAt:null,nextAt:null,people:{}};return publicRoom(s.rooms[pin]);
+  const items=validateDeck(b.items);let pin;do{pin=String(randomInt(100000,1000000));}while(s.rooms[pin]);
+  const teams=Object.fromEntries(imported.teams.map(t=>[t.id,{...t,code:randomUUID().slice(0,8),token:null}]));
+  const r={version:2,owner,pin,name:String(b.name||'Slark Live Room').slice(0,100),chapter:String(b.chapter||'Fim do capítulo').slice(0,100),trailId:imported.trail.id,demo:owner==='demo',items,teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[]};s.rooms[pin]=r;return teacherView(r);
  }
- const pin=String(b.pin||u.searchParams.get('pin')||'');const room=s.rooms[pin];if(!room)fail('PIN não encontrado. Confira os seis números.',404);
- if(action==='room')return publicRoom(room);
+ const p=String(b.pin||u.searchParams.get('pin')||'');const r=s.rooms[p];if(!r||r.version!==2)fail('Sala não encontrada. Confira o PIN.',404);
+ if(action==='teacher'){own(r);return teacherView(r);}
+ if(action==='room')return summary(r);
  if(action==='control'&&req.method==='POST'){
-  if(!admin(req))fail('Acesso administrativo necessário.',401);
-  if(b.command==='start'){room.status='active';room.endsAt=Date.now()+room.minutes*60000;room.nextAt=null;}
-  else if(b.command==='break'){room.status='break';room.endsAt=null;room.nextAt=Date.now()+30*60000;}
-  else if(b.command==='reset'){room.people={};room.status='ready';room.endsAt=null;room.nextAt=null;}
-  else if(b.command==='close'){room.status='closed';room.endsAt=null;room.nextAt=null;}
-  else if(b.command==='demo'){room.demo=!room.demo;}
-  else if(b.command==='review'){const p=room.people[b.person];if(!p?.answer)fail('Entrega não encontrada.');p.review=String(b.review||'').trim().slice(0,1500);}
-  else fail('Comando inválido.');return publicRoom(room);
+  own(r);
+  if(b.command==='start'||b.command==='next'){
+   if(b.command==='start'&&r.status!=='ready')fail('A sala já foi iniciada.');
+   if(b.command==='next'&&r.status!=='active')fail('Inicie a sala primeiro.');
+   if(r.index>=0&&r.items[r.index].type==='quiz'&&!r.revealed)fail('Revele a resposta antes de avançar.');
+   r.index++;r.openedAt=null;r.endsAt=null;r.revealed=false;
+   if(r.index>=r.items.length){r.status='closed';r.index=r.items.length;}else r.status='active';
+  }else if(b.command==='open'){
+   if(r.status!=='active'||r.items[r.index]?.type!=='quiz'||r.revealed||r.openedAt)fail('Esta pergunta não pode ser aberta novamente.');r.openedAt=Date.now();r.endsAt=r.openedAt+r.items[r.index].seconds*1000;
+  }else if(b.command==='reveal'){
+   if(r.status!=='active'||r.items[r.index]?.type!=='quiz'||!r.openedAt)fail('Abra uma pergunta antes de revelar.');r.revealed=true;r.endsAt=Math.min(r.endsAt,Date.now());
+  }else if(b.command==='close'){r.status='closed';r.endsAt=null;}
+  else fail('Comando inválido.');return teacherView(r);
  }
- if(action==='submissions'){if(!admin(req))fail('Acesso administrativo necessário.',401);return Object.entries(room.people).map(([id,p])=>({id,alias:p.alias,profile:p.profile,answer:p.answer,review:p.review}));}
- const person=room.people[b.token||u.searchParams.get('token')];
- if(action==='me'){if(!person)fail('Entre novamente usando o PIN.',401);return person;}
+ if(action==='observe'&&req.method==='POST'){
+  own(r);const student=String(b.student||''),text=String(b.text||'').trim(),trait=String(b.trait||'');
+  if(!Object.values(r.teams).some(t=>t.members.some(m=>m.id===student)))fail('Aluno fora dos quartetos desta sala.');
+  if(text.length<10||text.length>2000||!traits.includes(trait))fail('Escolha a característica e descreva uma evidência de 10 a 2.000 caracteres.');
+  const note={id:randomUUID(),student,trait,text,at:new Date().toISOString(),synced:false};
+  if(!r.demo){note.slarkId=await saveObservation({teacher:owner,student,trailId:r.trailId,text:`[Slark Live · ${r.chapter} · ${trait}] ${text}`});note.synced=true;}
+  r.observations.push(note);return note;
+ }
  if(action==='join'&&req.method==='POST'){
-  if(room.status!=='active'||(room.endsAt&&Date.now()>=room.endsAt))fail('Aguarde o administrativo iniciar a sessão.');
-  if(person)return {token:b.token,person};if(room.mode==='evaluator'&&Object.keys(room.people).length)fail('Esta sala de avaliador já está ocupada. Peça outro PIN.');if(Object.keys(room.people).length>=100)fail('Sala cheia.');const token=randomUUID();room.people[token]={alias:`Explorador ${Object.keys(room.people).length+1}`};return {token,person:room.people[token]};
+  if(r.status==='closed')fail('Esta sessão foi encerrada.');
+  const t=Object.values(r.teams).find(t=>equal(t.code,String(b.teamCode||'')));if(!t)fail('Código do quarteto incorreto. Peça ao professor.',403);
+  if(t.token&&t.token!==b.token)fail('O quarteto já tem um dispositivo conectado. Usem o dispositivo da equipe.',409);
+  t.token??=randomUUID();return {token:t.token,name:t.name};
  }
- if(!person)fail('Entre novamente com o PIN.',401);
- if(room.status!=='active'||Date.now()>=room.endsAt)fail('Sessão encerrada. Peça ao administrativo para iniciar outra sessão.');
- if(action==='profile'&&req.method==='POST'){person.profile=profile(b.answers);person.answers=b.answers;return person;}
- if(action==='submit'&&req.method==='POST'){if(!person.profile)fail('Conclua primeiro o questionário.');const answer=String(b.answer||'').trim();if(answer.length<30||answer.length>1500)fail('Escreva uma resposta entre 30 e 1.500 caracteres.');person.answer=answer;return person;}
+ const t=Object.values(r.teams).find(t=>t.token&&equal(t.token,String(b.token||u.searchParams.get('token')||'')));if(!t)fail('Conecte seu quarteto com os códigos da sala e da equipe.',401);
+ if(action==='state')return {...summary(r),team:{name:t.name},answered:!!r.answers[r.index]?.[t.id],results:results(r,t)};
+ if(action==='answer'&&req.method==='POST'){answer(r,t,b.option);return {ok:true};}
  fail('Ação não encontrada.',404);
  });res.end(JSON.stringify(result));
  }catch(e){res.statusCode=e.status||503;res.end(JSON.stringify({error:e.status?e.message:'Serviço indisponível. Verifique a configuração do servidor.'}));if(!e.status)console.error(e.message);}
