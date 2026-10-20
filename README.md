@@ -59,3 +59,13 @@ A Plus Jakarta Sans variável (200–800, normal e itálico, conjunto Latin com 
 O login usa e-mail e senha que já existem no Supabase da Slark. Senhas não são copiadas ou redefinidas. O access token fica em cookie HttpOnly e é validado por `/auth/v1/user`; as consultas à Data API respeitam RLS e não usam conexão privilegiada. A sessão expira em até uma hora, sem refresh automático. Testes de login usam servidor simulado; não foi utilizada a senha de nenhuma conta real.
 
 Estado de implantação: em 19/10/2026, a criação do projeto Vercel `slarklive` foi negada pela API (403, sem permissão). Ainda é necessário criar/importar o projeto com uma conta autorizada e configurar SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SESSION_SECRET e DATABASE_URL. O cadastro e as senhas no Supabase não foram alterados.
+
+## Persistência privada — correção 3.0.0-beta.2
+
+O backend usa a tabela `state` inicializada pelo provisionamento, sem executar DDL a cada requisição. A conexão usa TLS validado, uma conexão por instância e `SELECT ... FOR UPDATE` para impedir perda de respostas simultâneas. Falhas desfazem a transação.
+
+Produção usa `slarklive_private` e o role restrito `slarklive_app`; a branch de preview usa `slarklive_preview_private` e `slarklive_preview_app`. Nenhum desses schemas deve ser exposto na Data API. Os roles têm apenas USAGE no próprio schema e SELECT/UPDATE da própria tabela, com RLS e sem privilégios administrativos. As senhas são provisionadas separadamente e guardadas como secrets do Vercel; não fazem parte do repositório.
+
+Configuração: `DATABASE_URL` com o pooler Supabase; `SLARKLIVE_DATABASE_SCHEMA` seleciona um dos dois schemas permitidos. Opcionalmente `SLARKLIVE_DATABASE_CA_CERT` fornece o certificado CA em PEM. O login Supabase existente não é alterado.
+
+Para verificar o banco de preview: `SLARKLIVE_TEST_DATABASE_URL` ativa os testes PostgreSQL em `npm test`. Eles verificam incrementos em processos independentes, rollback e isolamento de produção, usando uma chave temporária fora de `rooms`, removida ao terminar.
