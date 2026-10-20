@@ -59,3 +59,13 @@ A Plus Jakarta Sans variável (200–800, normal e itálico, conjunto Latin com 
 O login usa e-mail e senha que já existem no Supabase da Slark. Senhas não são copiadas ou redefinidas. O access token fica em cookie HttpOnly e é validado por `/auth/v1/user`; as consultas à Data API respeitam RLS e não usam conexão privilegiada. A sessão expira em até uma hora, sem refresh automático. Testes de login usam servidor simulado; não foi utilizada a senha de nenhuma conta real.
 
 Estado de implantação: em 19/10/2026, a criação do projeto Vercel `slarklive` foi negada pela API (403, sem permissão). Ainda é necessário criar/importar o projeto com uma conta autorizada e configurar SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SESSION_SECRET e DATABASE_URL. O cadastro e as senhas no Supabase não foram alterados.
+
+## Subversão 3.0 — mata-mata
+
+O modo mata-mata aceita de 2 a 64 quartetos já definidos. O sorteio inicial forma confrontos; cada fase tem cinco perguntas compartilhadas pelos confrontos simultâneos. Vence quem acertar mais. Empates usam perguntas extras até haver vencedor, sem vantagem por velocidade. Quartetos sem adversário avançam automaticamente.
+
+Na primeira fase, as telas públicas e dos participantes recebem apenas apelidos genéricos. Nomes são revelados ao avançar para a próxima fase (ou ao concluir a final de um torneio com apenas dois quartetos). O painel privado do professor conserva os nomes e a observação individual. A API pública não expõe integrantes, códigos, tokens nem gabaritos antecipados.
+
+O banco precisa de pelo menos `5 × ceil(log2(quartetos))` perguntas: 15 para oito quartetos, 20 para dezesseis. O exemplo tem 25 perguntas. Slides continuam disponíveis no modo apresentação; o mata-mata seleciona apenas quizzes. O professor pode adicionar uma pergunta de desempate caso as extras acabem.
+
+`/demo` permite testar um torneio com oito quartetos fictícios, salvo apenas na sessão desta aba. Não exige login e não cria uma sala real. As salas reais continuam dependendo de `DATABASE_URL` no Vercel, além da configuração de autenticação Slark existente.

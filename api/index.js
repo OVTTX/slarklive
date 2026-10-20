@@ -1,3 +1,4 @@
+import {initTournament,controlTournament,tournamentView,extraQuestion,teamLabel} from './tournament.js';
 import {randomInt,randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 import {transact} from './store.js';
 import {fail,validateDeck,summary,teacherView,answer,results,traits} from './domain.js';
@@ -39,7 +40,7 @@ async function handler(req,res){
  let imported;
  if(action==='create'){
   if(!owner)fail('Entre como professor.',401);
-  if(owner==='demo')imported={trail:{id:'demo-trail',titulo:'Trilha demonstrativa'},teams:[0,1].map(i=>({id:`demo-${i}`,name:`Quarteto ${i+1}`,members:[0,1,2,3].map(j=>({id:`demo-${i}-${j}`,name:`Estudante fictício ${i*4+j+1}`}))}))};
+  if(owner==='demo')imported={trail:{id:'demo-trail',titulo:'Trilha demonstrativa'},teams:Array.from({length:b.mode==='tournament'?8:2},(_,i)=>i).map(i=>({id:`demo-${i}`,name:`Quarteto ${i+1}`,members:[0,1,2,3].map(j=>({id:`demo-${i}-${j}`,name:`Estudante fictício ${i*4+j+1}`}))}))};
   else imported=await loadTeams(owner,String(b.trailId||''));
  }
  const result=await transact(async s=>{
@@ -49,13 +50,14 @@ async function handler(req,res){
  if(action==='create'&&req.method==='POST'){
   const items=validateDeck(b.items);let pin;do{pin=String(randomInt(100000,1000000));}while(s.rooms[pin]);
   const teams=Object.fromEntries(imported.teams.map(t=>[t.id,{...t,code:randomUUID().slice(0,8),token:null}]));
-  const r={version:2,owner,pin,name:String(b.name||'Slark Live Room').slice(0,100),chapter:String(b.chapter||'Fim do capítulo').slice(0,100),trailId:imported.trail.id,demo:owner==='demo',items,teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[]};s.rooms[pin]=r;return teacherView(r);
+  const r={version:2,owner,pin,name:String(b.name||'Slark Live Room').slice(0,100),chapter:String(b.chapter||'Fim do capítulo').slice(0,100),trailId:imported.trail.id,demo:owner==='demo',items,teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[]};if(b.mode==='tournament')initTournament(r);s.rooms[pin]=r;return teacherView(r);
  }
  const p=String(b.pin||u.searchParams.get('pin')||'');const r=s.rooms[p];if(!r||r.version!==2)fail('Sala não encontrada. Confira o PIN.',404);
  if(action==='teacher'){own(r);return teacherView(r);}
  if(action==='room')return summary(r);
  if(action==='control'&&req.method==='POST'){
   own(r);
+  if(r.tournament){controlTournament(r,b.command);return teacherView(r);}
   if(b.command==='start'||b.command==='next'){
    if(b.command==='start'&&r.status!=='ready')fail('A sala já foi iniciada.');
    if(b.command==='next'&&r.status!=='active')fail('Inicie a sala primeiro.');
@@ -69,6 +71,7 @@ async function handler(req,res){
   }else if(b.command==='close'){r.status='closed';r.endsAt=null;}
   else fail('Comando inválido.');return teacherView(r);
  }
+ if(action==='extra'&&req.method==='POST'){own(r);if(!r.tournament)fail('Esta sala não é um torneio.');const item=validateDeck([b.item])[0];if(item.type!=='quiz')fail('O desempate precisa de uma pergunta.');extraQuestion(r,item);return teacherView(r);}
  if(action==='observe'&&req.method==='POST'){
   own(r);const student=String(b.student||''),text=String(b.text||'').trim(),trait=String(b.trait||'');
   if(!Object.values(r.teams).some(t=>t.members.some(m=>m.id===student)))fail('Aluno fora dos quartetos desta sala.');
@@ -81,10 +84,10 @@ async function handler(req,res){
   if(r.status==='closed')fail('Esta sessão foi encerrada.');
   const t=Object.values(r.teams).find(t=>equal(t.code,String(b.teamCode||'')));if(!t)fail('Código do quarteto incorreto. Peça ao professor.',403);
   if(t.token&&t.token!==b.token)fail('O quarteto já tem um dispositivo conectado. Usem o dispositivo da equipe.',409);
-  t.token??=randomUUID();return {token:t.token,name:t.name};
+  t.token??=randomUUID();return {token:t.token,name:r.tournament?teamLabel(r,t.id):t.name};
  }
  const t=Object.values(r.teams).find(t=>t.token&&equal(t.token,String(b.token||u.searchParams.get('token')||'')));if(!t)fail('Conecte seu quarteto com os códigos da sala e da equipe.',401);
- if(action==='state')return {...summary(r),team:{name:t.name},answered:!!r.answers[r.index]?.[t.id],results:results(r,t)};
+ if(action==='state')return {...summary(r),...(r.tournament?{tournament:tournamentView(r,t.id)}:{}),team:{name:r.tournament?teamLabel(r,t.id):t.name},answered:!!r.answers[r.index]?.[t.id],results:results(r,t)};
  if(action==='answer'&&req.method==='POST'){answer(r,t,b.option);return {ok:true};}
  fail('Ação não encontrada.',404);
  });res.end(JSON.stringify(result));
