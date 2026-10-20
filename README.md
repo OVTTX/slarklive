@@ -69,3 +69,13 @@ Na primeira fase, as telas públicas e dos participantes recebem apenas apelidos
 O banco precisa de pelo menos `5 × ceil(log2(quartetos))` perguntas: 15 para oito quartetos, 20 para dezesseis. O exemplo tem 25 perguntas. Slides continuam disponíveis no modo apresentação; o mata-mata seleciona apenas quizzes. O professor pode adicionar uma pergunta de desempate caso as extras acabem.
 
 `/demo` permite testar um torneio com oito quartetos fictícios, salvo apenas na sessão desta aba. Não exige login e não cria uma sala real. As salas reais continuam dependendo de `DATABASE_URL` no Vercel, além da configuração de autenticação Slark existente.
+
+## Persistência privada — correção 3.0.0-beta.2
+
+O backend usa a tabela `state` inicializada pelo provisionamento, sem executar DDL a cada requisição. A conexão usa TLS validado, uma conexão por instância e `SELECT ... FOR UPDATE` para impedir perda de respostas simultâneas. Falhas desfazem a transação.
+
+Produção usa `slarklive_private` e o role restrito `slarklive_app`; a branch de preview usa `slarklive_preview_private` e `slarklive_preview_app`. Nenhum desses schemas deve ser exposto na Data API. Os roles têm apenas USAGE no próprio schema e SELECT/UPDATE da própria tabela, com RLS e sem privilégios administrativos. As senhas são provisionadas separadamente e guardadas como secrets do Vercel; não fazem parte do repositório.
+
+Configuração: `DATABASE_URL` com o pooler Supabase; `SLARKLIVE_DATABASE_SCHEMA` seleciona um dos dois schemas permitidos. Opcionalmente `SLARKLIVE_DATABASE_CA_CERT` fornece o certificado CA em PEM. O login Supabase existente não é alterado.
+
+Para verificar o banco de preview: `SLARKLIVE_TEST_DATABASE_URL` ativa os testes PostgreSQL em `npm test`. Eles verificam incrementos em processos independentes, rollback e isolamento de produção, usando uma chave temporária fora de `rooms`, removida ao terminar.
