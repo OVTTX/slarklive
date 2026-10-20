@@ -60,7 +60,17 @@ O login usa e-mail e senha que já existem no Supabase da Slark. Senhas não sã
 
 Estado de implantação: em 19/10/2026, a criação do projeto Vercel `slarklive` foi negada pela API (403, sem permissão). Ainda é necessário criar/importar o projeto com uma conta autorizada e configurar SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SESSION_SECRET e DATABASE_URL. O cadastro e as senhas no Supabase não foram alterados.
 
-## Persistência privada — correção 3.0.0-beta.2
+## Slark Live 3.0 — mata-mata
+
+O modo mata-mata aceita de 2 a 64 quartetos já definidos. O sorteio inicial forma confrontos; cada fase tem cinco perguntas compartilhadas pelos confrontos simultâneos. Vence quem acertar mais. Empates usam perguntas extras até haver vencedor, sem vantagem por velocidade. Quartetos sem adversário avançam automaticamente.
+
+Na primeira fase, as telas públicas e dos participantes recebem apenas apelidos genéricos. Nomes são revelados ao avançar para a próxima fase (ou ao concluir a final de um torneio com apenas dois quartetos). O painel privado do professor conserva os nomes e a observação individual. A API pública não expõe integrantes, códigos, tokens nem gabaritos antecipados.
+
+O banco precisa de pelo menos `5 × ceil(log2(quartetos))` perguntas: 15 para oito quartetos, 20 para dezesseis. O exemplo tem 25 perguntas. Slides continuam disponíveis no modo apresentação; o mata-mata seleciona apenas quizzes. O professor pode adicionar uma pergunta de desempate caso as extras acabem.
+
+`/demo` permite testar um torneio com oito quartetos fictícios, salvo apenas na sessão desta aba. Não exige login e não cria uma sala real. As salas reais continuam dependendo de `DATABASE_URL` no Vercel, além da configuração de autenticação Slark existente.
+
+## Persistência privada
 
 O backend usa a tabela `state` inicializada pelo provisionamento, sem executar DDL a cada requisição. A conexão usa TLS validado, uma conexão por instância e `SELECT ... FOR UPDATE` para impedir perda de respostas simultâneas. Falhas desfazem a transação.
 
