@@ -1,9 +1,10 @@
+import {soloAction} from './solo.js';
 import {fixedTeamCode} from './team-codes.js';
 import {initTournament,controlTournament,tournamentView,extraQuestion,teamLabel} from './tournament.js';
 import {randomInt,randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 import {transact} from './store.js';
 import {fail,validateDeck,summary,teacherView,answer,results,traits} from './domain.js';
-import {teacherInfo,catalog,loadTeams,saveObservation,withSlarkSession} from './slark.js';
+import {accountInfo,studentCatalog,teacherInfo,catalog,loadTeams,saveObservation,withSlarkSession} from './slark.js';
 const attempts=new Map();
 function sign(x){return createHmac('sha256',process.env.SESSION_SECRET||'').update(x).digest('hex');}
 function equal(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
@@ -23,21 +24,29 @@ async function handler(req,res){
  if(action==='login'&&req.method==='POST'){
   if(!process.env.SESSION_SECRET||process.env.SESSION_SECRET.length<32)fail('Configure SESSION_SECRET (32 caracteres ou mais).',503);
   const ip=req.headers['x-forwarded-for']?.split(',')[0]||req.socket?.remoteAddress||'unknown';const now=Date.now(),a=attempts.get(ip)||{n:0,until:now+600000};if(a.until<now){a.n=0;a.until=now+600000;}if(a.n>=8)fail('Muitas tentativas. Aguarde dez minutos.',429);a.n++;attempts.set(ip,a);
-  let id;
+  let id,profile;
   if(b.email){
    if(!process.env.SUPABASE_URL||!process.env.SUPABASE_PUBLISHABLE_KEY)fail('Configure a autenticação da Slark no servidor.',503);
    const response=await fetch(process.env.SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:process.env.SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:String(b.email),password:String(b.password||'')}),signal:AbortSignal.timeout(10000)});
-   const auth=await response.json();if(!response.ok||!auth.user?.id)fail('E-mail ou senha inválidos.',401);await withSlarkSession(auth.access_token,()=>teacherInfo(auth.user.id));id=auth.user.id;res.slarkAccessToken=auth.access_token;
+   const auth=await response.json();if(!response.ok||!auth.user?.id)fail('E-mail ou senha inválidos.',401);profile=await withSlarkSession(auth.access_token,()=>accountInfo(auth.user.id));id=auth.user.id;res.slarkAccessToken=auth.access_token;
   }else{
    if(process.env.ENABLE_DEMO!=='1'||!process.env.ADMIN_PASSWORD||!equal(String(b.password||''),process.env.ADMIN_PASSWORD))fail('E-mail e senha do professor são necessários.',401);id='demo';
   }
-  attempts.delete(ip);setSession(res,id);if(res.slarkAccessToken){const signed=res.getHeader('Set-Cookie');res.setHeader('Set-Cookie',[signed,`slark_access=${res.slarkAccessToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600${process.env.VERCEL?'; Secure':''}`]);}return res.end(JSON.stringify({ok:true}));
+  attempts.delete(ip);setSession(res,id);if(res.slarkAccessToken){const signed=res.getHeader('Set-Cookie');res.setHeader('Set-Cookie',[signed,`slark_access=${res.slarkAccessToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600${process.env.VERCEL?'; Secure':''}`]);}return res.end(JSON.stringify({ok:true,role:profile?.perfil||'admin_slark',redirect:profile?.perfil==='aluno'?'/aluno':'/admin'}));
  }
  if(action==='logout'){res.setHeader('Set-Cookie',['slark_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0','slark_access=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0']);return res.end('{}');}
- const owner=identity(req);
- if(action==='session')return res.end(JSON.stringify({admin:!!owner,demo:owner==='demo',demoEnabled:process.env.ENABLE_DEMO==='1'}));
- if(owner&&owner!=='demo')await teacherInfo(owner);
- if(action==='catalog'){if(!owner)fail('Entre como professor.',401);return res.end(JSON.stringify(owner==='demo'?[{id:'demo-trail',titulo:'Runaway · Produção e consumo',sala_id:'demo'}]:await catalog(owner)));}
+ const accountId=identity(req);
+ const profile=accountId&&accountId!=='demo'?await accountInfo(accountId):null;
+ const isStudent=profile?.perfil==='aluno';
+ const owner=isStudent?null:accountId;
+ if(action==='session')return res.end(JSON.stringify({authenticated:!!accountId,admin:!!owner,student:isStudent,role:profile?.perfil,name:profile?.nome,demo:owner==='demo',demoEnabled:process.env.ENABLE_DEMO==='1'}));
+ if(action==='catalog'){if(!accountId)fail('Entre com sua conta Slark.',401);return res.end(JSON.stringify(accountId==='demo'?[{id:'demo-trail',titulo:'Runaway · Produção e consumo',sala_id:'demo'}]:await studentCatalog(accountId)));}
+ if(action.startsWith('solo-')){
+  if(!accountId)fail('Entre com sua conta Slark.',401);
+  const trails=accountId==='demo'?[{id:'demo-trail',titulo:'Trilha demonstrativa'}]:await studentCatalog(accountId);
+  const result=await transact(s=>soloAction(s,{action,method:req.method,body:b,query:u.searchParams,userId:accountId,admin:!!owner,trails}));
+  return res.end(JSON.stringify(result));
+ }
  let imported;
  if(action==='create'){
   if(!owner)fail('Entre como professor.',401);
