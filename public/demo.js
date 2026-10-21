@@ -1,6 +1,7 @@
 import {runDemoBots} from './demo-bots.js';
 import {initTournament,controlTournament,tournamentView,teamLabel,eligible,tournamentAnswer,extraQuestion} from './tournament-core.js';
-export function startDemo(app,{sample,itemHtml,koControls,notice,esc}){
+export async function startDemo(app,{sample,itemHtml,koControls,notice,esc}){
+ if(new URLSearchParams(location.search).get('mode')==='player'){const {startPlayerDemo}=await import('./demo-player.js');return startPlayerDemo(app,{sample,itemHtml,notice,esc});}
  const key='slarklive-knockout-preview-v3';let room;let botsEnabled=sessionStorage.getItem('slarklive-demo-bots')!=='off';
  try{room=JSON.parse(sessionStorage.getItem(key));}catch{}
  function fresh(){const teams=Object.fromEntries(Array.from({length:8},(_,i)=>[`demo-${i}`,{id:`demo-${i}`,name:['Órbita Azul','Horizonte','Constelação','Exploradores','Conexão','Estrela Norte','Galáxia','Universo'][i],members:[],code:'demo',token:null}]));room={pin:'DEMO',name:'Demonstração · Mata-mata',chapter:'Runaway · Produção e consumo',items:sample(),teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[],demo:true};initTournament(room);}

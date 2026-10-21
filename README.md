@@ -87,3 +87,9 @@ No painel do professor, crie uma sala e use **Abrir apresentação no telão**. 
 O código numérico de seis dígitos é atribuído na primeira sala de um quarteto e salvo no registro privado `quartetCodes.slark`, pela ID original do time na Slark. Novas salas reutilizam o mesmo código, inclusive após renomear o time. A demonstração usa um registro separado. Salas antigas mantêm seus códigos originais. O PIN de cada sala continua variável e necessário para entrar.
 
 O professor pode **Exportar códigos dos quartetos · CSV** na página de condução da sala. O arquivo contém `time_id`, `nome` e `codigo_slarklive`, para posterior cadastro no aplicativo Slark principal. A exportação não inclui integrantes. Não há alteração automática no cadastro da Slark principal.
+
+## Teste individual com bots
+
+Em `/demo?mode=player`, uma pessoa representa o Quarteto Conexão com três companheiros bots, contra sete quartetos de quatro bots. A pessoa envia a resposta coletiva de seu grupo; os bots nunca respondem por ela. O tempo, a revelação e o avanço das fases são automáticos. Após uma eliminação, o torneio continua como espectador. Os dados são fictícios e persistem apenas nesta aba, separados da demonstração do professor e das salas reais.
+
+Entrada pela página inicial: PIN de teste `888888` e código do quarteto `000001`. Essa combinação abre o simulador local; não cria nem conecta uma sala real. As mesmas informações são exibidas na página do teste. O código de teste não pertence ao intervalo dos códigos reais gerados (100000–999999).
