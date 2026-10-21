@@ -1,3 +1,4 @@
+import {fixedTeamCode} from './team-codes.js';
 import {initTournament,controlTournament,tournamentView,extraQuestion,teamLabel} from './tournament.js';
 import {randomInt,randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 import {transact} from './store.js';
@@ -49,7 +50,7 @@ async function handler(req,res){
  if(action==='rooms'){if(!owner)fail('Entre como professor.',401);return rooms.filter(r=>r.owner===owner).map(summary);}
  if(action==='create'&&req.method==='POST'){
   const items=validateDeck(b.items);let pin;do{pin=String(randomInt(100000,1000000));}while(s.rooms[pin]);
-  const teams=Object.fromEntries(imported.teams.map(t=>[t.id,{...t,code:randomUUID().slice(0,8),token:null}]));
+  const teams=Object.fromEntries(imported.teams.map(t=>[t.id,{...t,code:fixedTeamCode(s,t,owner==='demo'),token:null}]));
   const r={version:2,owner,pin,name:String(b.name||'Slark Live Room').slice(0,100),chapter:String(b.chapter||'Fim do capítulo').slice(0,100),trailId:imported.trail.id,demo:owner==='demo',items,teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[]};if(b.mode==='tournament')initTournament(r);s.rooms[pin]=r;return teacherView(r);
  }
  const p=String(b.pin||u.searchParams.get('pin')||'');const r=s.rooms[p];if(!r||r.version!==2)fail('Sala não encontrada. Confira o PIN.',404);

@@ -79,3 +79,11 @@ Produção usa `slarklive_private` e o role restrito `slarklive_app`; a branch d
 Configuração: `DATABASE_URL` com o pooler Supabase; `SLARKLIVE_DATABASE_SCHEMA` seleciona um dos dois schemas permitidos. Opcionalmente `SLARKLIVE_DATABASE_CA_CERT` fornece o certificado CA em PEM. O login Supabase existente não é alterado.
 
 Para verificar o banco de preview: `SLARKLIVE_TEST_DATABASE_URL` ativa os testes PostgreSQL em `npm test`. Eles verificam incrementos em processos independentes, rollback e isolamento de produção, usando uma chave temporária fora de `rooms`, removida ao terminar.
+
+## Telão e códigos fixos dos quartetos
+
+No painel do professor, crie uma sala e use **Abrir apresentação no telão**. Enquanto a sala aguarda início, `/live?pin=PIN` apresenta o PIN em destaque e os nomes dos quartetos conectados, atualizados a cada dois segundos. Há um botão de tela cheia. Após iniciar o torneio, o telão volta aos quizzes e aos confrontos anônimos da primeira fase. Códigos, integrantes, tokens e observações não são enviados ao telão.
+
+O código numérico de seis dígitos é atribuído na primeira sala de um quarteto e salvo no registro privado `quartetCodes.slark`, pela ID original do time na Slark. Novas salas reutilizam o mesmo código, inclusive após renomear o time. A demonstração usa um registro separado. Salas antigas mantêm seus códigos originais. O PIN de cada sala continua variável e necessário para entrar.
+
+O professor pode **Exportar códigos dos quartetos · CSV** na página de condução da sala. O arquivo contém `time_id`, `nome` e `codigo_slarklive`, para posterior cadastro no aplicativo Slark principal. A exportação não inclui integrantes. Não há alteração automática no cadastro da Slark principal.
