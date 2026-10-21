@@ -25,7 +25,7 @@ export function transact(fn){
    const updated=await c.query(`UPDATE ${schema}.state SET data=$1 WHERE id=1`,[JSON.stringify(state)]);
    if(updated.rowCount!==1)throw Object.assign(new Error('Não foi possível salvar o estado da sala.'),{status:503});
    await c.query('COMMIT');begun=false;return result;
-  }catch(e){if(begun){try{await c.query('ROLLBACK');}catch{}}throw e;}finally{c.release();}
+  }catch(e){if(begun){try{await c.query('ROLLBACK');}catch{}}if(e.code==='P0001'&&e.message?.startsWith('Slark Live:'))throw Object.assign(new Error(e.message),{status:409});throw e;}finally{c.release();}
  }
  if(process.env.VERCEL)throw Object.assign(new Error('O armazenamento das salas ainda não foi ativado. A equipe Slark precisa concluir a configuração para criar e salvar salas.'),{status:503});
  await mkdir('.data',{recursive:true});let state;try{state=JSON.parse(await readFile('.data/state.json','utf8'));}catch(e){if(e.code!=='ENOENT')throw e;state={rooms:{}};}

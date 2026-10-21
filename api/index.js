@@ -39,7 +39,7 @@ async function handler(req,res){
  const profile=accountId&&accountId!=='demo'?await accountInfo(accountId):null;
  const isStudent=profile?.perfil==='aluno';
  const owner=isStudent?null:accountId;
- if(action==='session')return res.end(JSON.stringify({authenticated:!!accountId,admin:!!owner,student:isStudent,role:profile?.perfil,name:profile?.nome,demo:owner==='demo',demoEnabled:process.env.ENABLE_DEMO==='1'}));
+ if(action==='session')return res.end(JSON.stringify({authenticated:!!accountId,admin:!!owner,student:isStudent,role:profile?.perfil,name:profile?.nome,avatar:profile?.avatar_url,demo:owner==='demo',demoEnabled:process.env.ENABLE_DEMO==='1'}));
  if(action==='catalog'){if(!accountId)fail('Entre com sua conta Slark.',401);return res.end(JSON.stringify(accountId==='demo'?[{id:'demo-trail',titulo:'Runaway · Produção e consumo',sala_id:'demo'}]:await studentCatalog(accountId)));}
  if(action.startsWith('solo-')){
   if(!accountId)fail('Entre com sua conta Slark.',401);
@@ -60,7 +60,7 @@ async function handler(req,res){
  if(action==='create'&&req.method==='POST'){
   const items=validateDeck(b.items);let pin;do{pin=String(randomInt(100000,1000000));}while(s.rooms[pin]);
   const teams=Object.fromEntries(imported.teams.map(t=>[t.id,{...t,code:fixedTeamCode(s,t,owner==='demo'),token:null}]));
-  const r={version:2,owner,pin,name:String(b.name||'Slark Live Room').slice(0,100),chapter:String(b.chapter||'Fim do capítulo').slice(0,100),trailId:imported.trail.id,demo:owner==='demo',items,teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[]};if(b.mode==='tournament')initTournament(r);s.rooms[pin]=r;return teacherView(r);
+  const r={version:2,rankingVersion:1,rankingId:randomUUID(),owner,pin,name:String(b.name||'Slark Live Room').slice(0,100),chapter:String(b.chapter||'Fim do capítulo').slice(0,100),trailId:imported.trail.id,demo:owner==='demo',items,teams,status:'ready',index:-1,openedAt:null,endsAt:null,revealed:false,answers:{},observations:[]};if(b.mode==='tournament')initTournament(r);s.rooms[pin]=r;return teacherView(r);
  }
  const p=String(b.pin||u.searchParams.get('pin')||'');const r=s.rooms[p];if(!r||r.version!==2)fail('Sala não encontrada. Confira o PIN.',404);
  if(action==='teacher'){own(r);return teacherView(r);}
