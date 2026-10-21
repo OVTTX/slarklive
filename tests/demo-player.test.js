@@ -13,8 +13,8 @@ test('teste contém uma pessoa, três companheiros bots e sete quartetos bots',(
 test('os bots respondem pelos adversários, sem enviar nem sobrescrever a resposta humana',()=>{
  const r=createPlayerDemo(sample());controlTournament(r,'start',1000);stepPlayerDemo(r,1000,()=>0);
  stepPlayerDemo(r,9000,()=>0);assert.equal(Object.keys(r.answers[0]).length,7);assert.equal(r.answers[0][r.playerTeamId],undefined);assert(!r.revealed);
- tournamentAnswer(r,r.teams[r.playerTeamId],2,9500);stepPlayerDemo(r,10000,()=>0);assert.equal(r.answers[0][r.playerTeamId].option,2);assert(r.revealed);
- stepPlayerDemo(r,13000);assert.equal(r.index,0);stepPlayerDemo(r,14000);assert.equal(r.index,1);assert(!r.revealed);
+ tournamentAnswer(r,r.teams[r.playerTeamId],2,9500);stepPlayerDemo(r,10000,()=>0);assert.equal(r.answers[0][r.playerTeamId].option,2);assert(!r.revealed);stepPlayerDemo(r,21000,()=>0);assert(r.revealed);
+ stepPlayerDemo(r,13000);assert.equal(r.index,0);stepPlayerDemo(r,40999);assert.equal(r.index,0);stepPlayerDemo(r,41000);assert.equal(r.index,1);assert(!r.revealed);
 });
 test('torneio avança sozinho até o campeão com uma pessoa respondendo',()=>{
  const r=createPlayerDemo(sample()),rng=random();controlTournament(r,'start',1000);

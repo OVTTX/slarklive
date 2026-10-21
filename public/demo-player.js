@@ -15,11 +15,13 @@ export function startPlayerDemo(app,{sample,itemHtml,notice,esc}){
   const item=x?(room.revealed?x:Object.fromEntries(Object.entries(x).filter(([k])=>!['correct','explanation'].includes(k)))):null;
   const state={...room,item,tournament,total:room.items.length,answered:!!room.answers[room.index]?.[room.playerTeamId]};
   const publicTournament=tournamentView(room);
-  const projected={name:room.name,chapter:room.chapter,pin:room.pin,status:room.status,index:room.index,openedAt:room.openedAt,endsAt:room.endsAt,revealed:room.revealed,item,total:room.items.length,tournament:publicTournament,responses:Object.keys(room.answers[room.index]||{}).length,teams:Object.values(room.teams).map(t=>({name:tournamentView(room,t.id).own.label,joined:true,answered:!!room.answers[room.index]?.[t.id]}))};
+  const projected={name:room.name,chapter:room.chapter,pin:room.pin,status:room.status,index:room.index,openedAt:room.openedAt,endsAt:room.endsAt,revealed:room.revealed,nextQuestionAt:room.demoNextAt||room.nextQuestionAt,item,total:room.items.length,tournament:publicTournament,responses:Object.keys(room.answers[room.index]||{}).length,teams:Object.values(room.teams).map(t=>({name:tournamentView(room,t.id).own.label,joined:true,answered:!!room.answers[room.index]?.[t.id]}))};
   if(screen){
-   app.innerHTML=room.status==='ready'?`<section class="screen-lobby"><img class="screen-logo" src="/assets/slark-live.svg" alt="Slark Live"><p class="eyebrow">Teste com bots · PIN</p><div class="lobby-pin">${esc(room.pin)}</div><h2>Quarteto Conexão e sete quartetos de bots</h2><p>Você e três bots · Código de teste: 000001</p><button id="startPlayer">Iniciar partida →</button><button id="screenFullscreen" class="secondary">Tela cheia ↗</button></section>`:screenMatchHtml(projected,esc);
+   app.innerHTML=room.status==='ready'?`<section class="screen-lobby"><img class="screen-logo" src="/assets/slark-live.svg" alt="Slark Live"><p class="eyebrow">Teste com bots · PIN</p><div class="lobby-pin">${esc(room.pin)}</div><h2>Aguardando início da partida</h2><button id="startPlayer">Iniciar partida →</button><button id="screenFullscreen" class="secondary">Tela cheia ↗</button></section>`:screenMatchHtml(projected,esc);
    document.querySelector('#startPlayer')?.addEventListener('click',start);
    document.querySelector('#screenFullscreen')?.addEventListener('click',async()=>{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen?.();});
+   if(room.status==='active')app.innerHTML+='<button id="endMatch" class="danger">Encerrar partida</button>';
+   document.querySelector('#endMatch')?.addEventListener('click',end);
    clock();return;
   }
   const eliminated=tournament.own.status==='eliminated';
@@ -29,10 +31,11 @@ export function startPlayerDemo(app,{sample,itemHtml,notice,esc}){
   document.querySelectorAll('[data-option]').forEach(b=>b.onclick=()=>{try{read();tournamentAnswer(room,room.teams[room.playerTeamId],Number(b.dataset.option));render();}catch(e){notice(e.message)}});
   clock();
  }
+ function end(){read();controlTournament(room,'close');delete room.demoNextAt;render();}
  function start(){read();if(room.status==='ready'){controlTournament(room,'start');stepPlayerDemo(room);}render();}
- function clock(){const remaining=room.endsAt&&!room.revealed?Math.max(0,Math.ceil((room.endsAt-Date.now())/1000)):0;const node=document.querySelector('#clock');if(node)node.textContent=node.dataset.format==='minutes'?String(Math.floor(remaining/60)).padStart(2,'0')+':'+String(remaining%60).padStart(2,'0'):remaining+'s';const bar=document.querySelector('#screenTimeBar');if(bar)bar.style.width=Math.min(100,remaining/(room.items[room.index]?.seconds||30)*100)+'%';}
+ function clock(){const deadline=room.revealed?(room.demoNextAt||room.nextQuestionAt):room.endsAt;const remaining=deadline?Math.max(0,Math.ceil((deadline-Date.now())/1000)):0;const node=document.querySelector('#clock');if(node)node.textContent=node.dataset.format==='minutes'?String(Math.floor(remaining/60)).padStart(2,'0')+':'+String(remaining%60).padStart(2,'0'):remaining+'s';const bar=document.querySelector('#screenTimeBar');if(bar)bar.style.width=Math.min(100,remaining/(room.items[room.index]?.seconds||30)*100)+'%';}
  render();
- function tick(){try{read();if(stepPlayerDemo(room)||JSON.stringify(room)!==signature)render();else clock();}catch(e){notice(e.message)}}
+ function tick(){try{read();if(stepPlayerDemo(room)||JSON.stringify(room)!==signature)render();else if(!screen&&room.endsAt&&Date.now()>=room.endsAt)render();else clock();}catch(e){notice(e.message)}}
  window.addEventListener('storage',e=>{if(e.key===sharedKey)tick();});
  window.addEventListener('focus',tick);setInterval(tick,250);
 }

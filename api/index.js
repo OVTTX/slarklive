@@ -58,6 +58,7 @@ async function handler(req,res){
  if(action==='room')return summary(r);
  if(action==='control'&&req.method==='POST'){
   own(r);
+  if(['next','advance-round','open'].includes(b.command)&&r.nextQuestionAt>Date.now())fail('Aguarde os 20 segundos após a revelação da resposta.');
   if(r.tournament){controlTournament(r,b.command);return teacherView(r);}
   if(b.command==='start'||b.command==='next'){
    if(b.command==='start'&&r.status!=='ready')fail('A sala já foi iniciada.');
@@ -68,7 +69,7 @@ async function handler(req,res){
   }else if(b.command==='open'){
    if(r.status!=='active'||r.items[r.index]?.type!=='quiz'||r.revealed||r.openedAt)fail('Esta pergunta não pode ser aberta novamente.');r.openedAt=Date.now();r.endsAt=r.openedAt+r.items[r.index].seconds*1000;
   }else if(b.command==='reveal'){
-   if(r.status!=='active'||r.items[r.index]?.type!=='quiz'||!r.openedAt)fail('Abra uma pergunta antes de revelar.');r.revealed=true;r.endsAt=Math.min(r.endsAt,Date.now());
+   if(r.status!=='active'||r.items[r.index]?.type!=='quiz'||!r.openedAt)fail('Abra uma pergunta antes de revelar.');r.revealed=true;r.nextQuestionAt=Date.now()+20000;r.endsAt=Math.min(r.endsAt,Date.now());
   }else if(b.command==='close'){r.status='closed';r.endsAt=null;}
   else fail('Comando inválido.');return teacherView(r);
  }

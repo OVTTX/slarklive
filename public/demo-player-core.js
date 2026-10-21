@@ -15,7 +15,7 @@ export function createPlayerDemo(items){
 export function stepPlayerDemo(room,now=Date.now(),random=Math.random){
  if(!room.demo||!room.playerTeamId||room.status!=='active')return false;
  if(room.revealed){
-  room.demoNextAt??=now+4000;
+  room.demoNextAt??=now+20000;
   if(now<room.demoNextAt)return false;
   if(room.tournament.phase==='tiebreak'&&room.tournament.bank[room.tournament.tieCursor]===undefined){
    const item=room.items.find(x=>x.type==='quiz');
@@ -28,6 +28,6 @@ export function stepPlayerDemo(room,now=Date.now(),random=Math.random){
  const changed=runDemoBots(room,now,random,room.playerTeamId)>0;
  const ids=Object.keys(room.teams).filter(id=>eligible(room,id));
  const allAnswered=ids.length>0&&ids.every(id=>room.answers[room.index]?.[id]);
- if(allAnswered||now>=room.endsAt){controlTournament(room,'reveal',now);room.demoNextAt=now+4000;return true;}
+ if(now>=room.endsAt){controlTournament(room,'reveal',now);room.demoNextAt=now+20000;return true;}
  return changed;
 }

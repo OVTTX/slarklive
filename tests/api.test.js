@@ -29,6 +29,6 @@ test('sala mesclada, quarteto único, sigilo, controle, respostas e observação
  assert.equal((await call('control',{pin,command:'next'},true)).status,400);await call('control',{pin,command:'reveal'},true);
  const revealed=await call('state',null,false,{pin,token});assert.equal(revealed.data.item.correct,0);assert.equal(revealed.data.results.length,1);
  const screen=await call('room',null,false,{pin});assert.equal(JSON.stringify(screen.data).includes(code),false);assert.equal(screen.data.observations,undefined);
- await call('control',{pin,command:'next'},true);assert.equal((await call('state',null,false,{pin,token})).data.status,'closed');assert.equal((await call('answer',{pin,token,option:0})).status,400);
+ assert.equal((await call('control',{pin,command:'next'},true)).status,400);await call('control',{pin,command:'close'},true);assert.equal((await call('state',null,false,{pin,token})).data.status,'closed');assert.equal((await call('answer',{pin,token,option:0})).status,400);
  }finally{child.kill();await once(child,'exit');await rm(dir,{recursive:true,force:true});}
 });

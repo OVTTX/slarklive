@@ -19,7 +19,7 @@ const activeMatches=room=>room.tournament.rounds[room.tournament.round];
 export function matchFor(room,id){return activeMatches(room).find(m=>m.a===id||m.b===id);}
 export function eligible(room,id){const m=matchFor(room,id);return !!m&&!m.winner&&!m.bye;}
 export function teamLabel(room,id){if(!id)return 'Aguardando adversário';const t=room.tournament;return t.round===0&&t.phase!=='completed'?t.aliases[id]:room.teams[id].name;}
-function resetQuestion(room,index){room.index=index;room.revealed=false;room.openedAt=null;room.endsAt=null;room.tournament.phase='question';}
+function resetQuestion(room,index){room.index=index;room.nextQuestionAt=null;room.revealed=false;room.openedAt=null;room.endsAt=null;room.tournament.phase='question';}
 function score(room,match){return [match.a,match.b].map(id=>room.tournament.bank.slice(room.tournament.round*5,room.tournament.round*5+5).reduce((n,index)=>n+(room.answers[index]?.[id]?.correct?1:0),0));}
 export function tournamentView(room,ownId){const t=room.tournament;return {round:t.round+1,roundCount:t.roundCount,roundLabel:roundName(activeMatches(room).length),phase:t.phase,question:Math.min(t.question+1,5),tiebreak:t.question>=5,hidden:t.round===0&&t.phase!=='completed',champion:t.champion?teamLabel(room,t.champion):null,history:t.rounds.map((matches,i)=>({label:roundName(matches.length),matches:matches.map((m,j)=>{const scores=scoreForRound(room,m,i);return {slot:j+1,a:teamLabel(room,m.a),b:m.b?teamLabel(room,m.b):'Avança sem adversário',scoreA:scores[0],scoreB:scores[1],winner:m.winner?teamLabel(room,m.winner):null,bye:m.bye,own:!!ownId&&(m.a===ownId||m.b===ownId)};})})),own:ownId?{label:teamLabel(room,ownId),eligible:eligible(room,ownId),status:t.champion===ownId?'champion':matchFor(room,ownId)?.winner===ownId?'qualified':eligible(room,ownId)?'playing':'eliminated'}:null};}
 function scoreForRound(room,m,round){return [m.a,m.b].map(id=>room.tournament.bank.slice(round*5,round*5+5).reduce((n,index)=>n+(room.tournament.revealedItems.includes(index)&&room.answers[index]?.[id]?.correct?1:0),0));}
@@ -57,7 +57,7 @@ export function controlTournament(room,command,now=Date.now()){
  if(t.phase!=='question'||room.openedAt||room.revealed)error('A pergunta não pode ser aberta novamente.');room.openedAt=now;room.endsAt=now+room.items[room.index].seconds*1000;return;
  }
  if(command==='reveal'){
- if(t.phase!=='question'||!room.openedAt||room.revealed)error('Abra uma pergunta antes de revelar a resposta.');room.revealed=true;t.revealedItems.push(room.index);room.endsAt=Math.min(room.endsAt,now);resolveAfterReveal(room);return;
+ if(t.phase!=='question'||!room.openedAt||room.revealed)error('Abra uma pergunta antes de revelar a resposta.');room.revealed=true;room.nextQuestionAt=now+20000;t.revealedItems.push(room.index);room.endsAt=Math.min(room.endsAt,now);resolveAfterReveal(room);return;
  }
  if(command==='next'){
  if(!room.revealed)error('Revele a resposta antes de avançar.');
