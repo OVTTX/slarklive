@@ -18,7 +18,7 @@ export function currentItem(r,privileged=false){
  if(privileged||r.revealed)return {...x};
  const {correct,explanation,...safe}=x;return safe;
 }
-export function summary(r){return {pin:r.pin,name:r.name,chapter:r.chapter,trailId:r.trailId,status:r.status,index:r.index,total:r.items.length,openedAt:r.openedAt,endsAt:r.endsAt,revealed:r.revealed,item:currentItem(r),demo:r.demo,...(r.status==='ready'?{lobbyTeams:Object.values(r.teams).filter(t=>t.token).map(t=>({name:t.name}))}:{}),...(r.tournament?{tournament:tournamentView(r)}:{}),teams:Object.values(r.teams).map(t=>({name:r.tournament?teamLabel(r,t.id):t.name,joined:!!t.token})),responses:Object.values(r.answers[r.index]||{}).length};}
+export function summary(r){return {pin:r.pin,name:r.name,chapter:r.chapter,trailId:r.trailId,status:r.status,index:r.index,total:r.items.length,openedAt:r.openedAt,endsAt:r.endsAt,revealed:r.revealed,item:currentItem(r),demo:r.demo,...(r.status==='ready'?{lobbyTeams:Object.values(r.teams).filter(t=>t.token).map(t=>({name:t.name}))}:{}),...(r.tournament?{tournament:tournamentView(r)}:{}),teams:Object.values(r.teams).map(t=>({name:r.tournament?teamLabel(r,t.id):t.name,joined:!!t.token,answered:!!r.answers[r.index]?.[t.id]})),responses:Object.values(r.answers[r.index]||{}).length};}
 export function teacherView(r){return {...summary(r),items:r.items,teams:Object.values(r.teams).map(t=>({id:t.id,name:t.name,code:t.code,members:t.members,joined:!!t.token})),answers:r.answers,observations:r.observations};}
 export function answer(r,t,option,now=Date.now()){
  if(r.tournament)return tournamentAnswer(r,t,option,now);

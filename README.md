@@ -93,3 +93,7 @@ O professor pode **Exportar códigos dos quartetos · CSV** na página de condu�
 Em `/demo?mode=player`, uma pessoa representa o Quarteto Conexão com três companheiros bots, contra sete quartetos de quatro bots. A pessoa envia a resposta coletiva de seu grupo; os bots nunca respondem por ela. O tempo, a revelação e o avanço das fases são automáticos. Após uma eliminação, o torneio continua como espectador. Os dados são fictícios e persistem apenas nesta aba, separados da demonstração do professor e das salas reais.
 
 Entrada pela página inicial: PIN de teste `888888` e código do quarteto `000001`. Essa combinação abre o simulador local; não cria nem conecta uma sala real. As mesmas informações são exibidas na página do teste. O código de teste não pertence ao intervalo dos códigos reais gerados (100000–999999).
+
+## Layout do telão durante a partida
+
+O telão usa a composição da referência `Slark Live · Partida`: pergunta e alternativas à esquerda, relógio `mm:ss` com barra de tempo, chaveamento e placares à direita, marca Slark no topo e PIN no rodapé. O estado de resposta é coletivo (respondeu/aguardando), sem mostrar a alternativa escolhida. O gabarito, explicação e placar de acertos só aparecem após a revelação pelo professor. Todos os confrontos da mesma fase continuam simultâneos; o painel indica esse comportamento. Recepção e telas dos participantes mantêm seus próprios layouts.
