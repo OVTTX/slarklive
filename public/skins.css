@@ -57,3 +57,18 @@ html[data-moldura=ouro] .account-avatar,.frame-ouro {outline:2px solid #C79D42;o
 #styleStatus {min-height:28px;color:var(--live-highlight);}
 @media(max-width:900px){.style-catalog {grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:580px){.style-catalog {grid-template-columns:1fr;}.skin-preview {padding:24px;}.style-shop>h1 {letter-spacing:-1.5px;}.style-categories {gap:7px;}.style-categories button {padding:10px 13px;font-size:12px;}}
+
+/* Noir is intentionally monochrome, including when a title color is equipped. */
+html[data-skin=noir],html[data-skin=noir][data-texto] {color-scheme:dark;--live-bg:#000;--live-panel:#000;--live-accent:#000;--live-highlight:#D1D1D1;--live-fg:#D1D1D1;--live-text:#D1D1D1;--live-muted:#BDBDBD;--live-line:#363636;--live-input:#000;}
+html[data-skin=noir] body,html[data-skin=noir] body.live.match-layout {background:#000;}
+html[data-skin=noir] :is(.topbar,.topbar nav.account-menu,.account-avatar,.secondary,.choice,.member,.badge,.screen-live-pill,.screen-countdown,.screen-duel,.screen-winner,.lobby-team,.match-letter,.correct,.option-correct) {background:#000;color:#D1D1D1;border-color:#363636;box-shadow:none;}
+html[data-skin=noir] :is(button,.button):not(.choice):not(.account-nav) {color:#D1D1D1;background:#000;border:1px solid #363636;box-shadow:none;}
+html[data-skin=noir] :is(.eyebrow,.screen-phase,.screen-phase strong,.screen-countdown,.screen-explanation,.screen-response-footer,.match-response.received,.screen-duel strong,.screen-live-pill,.screen-match-footer,.style-access,.style-categories [aria-pressed=true],#styleStatus) {color:#D1D1D1;}
+html[data-skin=noir] :is(.planet,.dot,.progress span,.bar span,.screen-timer-track span) {background:#BDBDBD;box-shadow:none;}
+html[data-skin=noir] .lobby-pin {text-shadow:none;}
+html[data-skin=noir] svg {filter:grayscale(1);}
+html[data-skin=noir] :is(button,a):not(:disabled):hover {border-color:#AAA;}
+html[data-skin=noir] .account-avatar {outline-color:#AAA;}
+html[data-skin=noir] :is(.topbar nav,.topbar .account-nav,.topbar nav.account-menu) {color:#D1D1D1;}
+html[data-skin=noir] .brand img {filter:grayscale(1) brightness(.82);}
+html[data-skin=noir] :is(.screen-live-pill i,.screen-match-footer i) {background:#BDBDBD;}

@@ -29,5 +29,11 @@ test('Gold requires 25 real wins and preview/data does not grant a victory',()=>
  assert.throws(()=>call(state,{id:'student'},24,{tipo:'skin',id:'ouro'}),e=>e.status===403);
  assert.equal(call(state,{id:'student'},25,{tipo:'skin',id:'ouro'}).preferencias.skin,'ouro');
  assert.equal(call(state,{id:'student'},0).vitorias,0);
- assert.equal(CATALOGO.filter(i=>i.tipo==='skin').length,11);
+ assert.equal(CATALOGO.filter(i=>i.tipo==='skin').length,12);
+});
+
+test('Noir saves and reloads at zero wins for an ordinary account',()=>{
+ const state={rooms:{}},profile={id:'noir-student',perfil:'aluno'};
+ assert.equal(call(state,profile,0,{tipo:'skin',id:'noir'}).preferencias.skin,'noir');
+ assert.equal(call(state,profile,0).preferencias.skin,'noir');
 });
