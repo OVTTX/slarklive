@@ -1,0 +1,59 @@
+/* Account appearance, loaded after the established Live layout. */
+html[data-skin] {--live-fg:#F4F2FF;--live-muted:#C5C6DB;--live-line:#ffffff25;--live-input:#00000020;--live-text:#F4F2FF;color:var(--live-fg);background:var(--live-bg);}
+html[data-skin=slark] {--live-bg:#000026;--live-panel:#0C0B36;--live-accent:#0651C3;--live-highlight:#9C9CFE;}
+html[data-skin=aurora] {--live-bg:#052823;--live-panel:#103C32;--live-accent:#187B68;--live-highlight:#69D6BB;}
+html[data-skin=oceano] {--live-bg:#051C35;--live-panel:#102D46;--live-accent:#087BA5;--live-highlight:#8ADFFF;}
+html[data-skin=ametista] {--live-bg:#200E38;--live-panel:#301B48;--live-accent:#7843BD;--live-highlight:#CEA3FF;}
+html[data-skin=rosa] {--live-bg:#210F23;--live-panel:#30172E;--live-accent:#A72F73;--live-highlight:#F4A5D0;}
+html[data-skin=solar] {--live-bg:#26130F;--live-panel:#38201A;--live-accent:#AF4C20;--live-highlight:#FFBD8F;}
+html[data-skin=floresta] {--live-bg:#0D2019;--live-panel:#172E23;--live-accent:#287044;--live-highlight:#96D7A7;}
+html[data-skin=cosmos] {--live-bg:#14102C;--live-panel:#211A3F;--live-accent:#6552BE;--live-highlight:#BDB5FF;}
+html[data-skin=grafite] {--live-bg:#14171B;--live-panel:#22272D;--live-accent:#52616D;--live-highlight:#C3D1DC;}
+html[data-skin=rubi] {--live-bg:#250E18;--live-panel:#391723;--live-accent:#AC3150;--live-highlight:#FFA4B8;}
+html[data-skin=ouro] {color-scheme:light;--live-bg:#FFFCF5;--live-panel:#FFFEFA;--live-accent:#886219;--live-highlight:#805B13;--live-fg:#332A19;--live-text:#332A19;--live-muted:#716348;--live-line:#AD883B40;--live-input:#fff;}
+html[data-skin] body,html[data-skin] body.live.match-layout {background:radial-gradient(ellipse at 90% 0%,color-mix(in srgb,var(--live-accent) 30%,transparent),transparent 60%),var(--live-bg);color:var(--live-fg);}
+html[data-skin] :is(p,label,small,.muted,.slide-text,.screen-slide-text) {color:var(--live-muted);}
+html[data-skin] :is(h1,h2,h3,.lobby-pin) {color:var(--live-text);}
+html[data-skin] :is(.card,.stat,.member,.match,.screen-question-card,.screen-knockout,.screen-option,.screen-duel,.champion) {background:var(--live-panel);border-color:var(--live-line);}
+html[data-skin] :is(input,select,textarea) {background:var(--live-input);color:var(--live-fg);border-color:var(--live-line);}
+html[data-skin] select option {background:var(--live-panel);color:var(--live-fg);}
+html[data-skin] :is(button,.button):not(.secondary):not(.danger):not(.choice):not(.answer-option):not(.account-nav) {background:var(--live-accent);color:#fff;}
+html[data-skin] :is(.secondary,.choice,.member) {color:var(--live-fg);border-color:var(--live-line);}
+html[data-skin] .secondary,html[data-skin] .choice {background:var(--live-input);}
+html[data-skin] :is(.eyebrow,.screen-phase,.screen-bracket h3,.match small) {color:var(--live-highlight);}
+html[data-skin] .topbar {background:linear-gradient(110deg,var(--live-accent),color-mix(in srgb,var(--live-accent) 60%,#08081c));border-color:var(--live-line);}
+html[data-skin] .topbar nav.account-menu {background:var(--live-panel);color:var(--live-fg);border-color:var(--live-line);}
+html[data-skin] :is(button,a,input,select,textarea):focus-visible {outline:2px solid var(--live-highlight);outline-offset:4px;}
+html[data-skin] .correct,html[data-skin] .option-correct {border-color:#3FD08A;background:color-mix(in srgb,#3FD08A 15%,var(--live-panel));}
+html[data-texto=gelo] {--live-text:#BDEEFF;}
+html[data-texto=azul] {--live-text:#9BC5FF;}
+html[data-texto=dourado] {--live-text:#E8C878;}
+html[data-skin=ouro][data-texto=gelo],html[data-skin=ouro][data-texto=azul] {--live-text:#24527B;}
+html[data-skin=ouro][data-texto=dourado] {--live-text:#805B13;}
+html[data-moldura=orbita] .account-avatar,.frame-orbita {outline:2px solid #6FA8FF;outline-offset:3px;}
+html[data-moldura=constelacao] .account-avatar,.frame-constelacao {outline:2px dashed #BF88FF;outline-offset:3px;}
+html[data-moldura=ouro] .account-avatar,.frame-ouro {outline:2px solid #C79D42;outline-offset:3px;box-shadow:0 0 14px #C79D4240;}
+.style-shop>h1 {font-size:clamp(34px,5.5vw,66px);overflow-wrap:anywhere;}
+.style-shop>p {max-width:74ch;}
+.style-access {padding:16px 20px;border:1px solid var(--live-line);border-radius:16px;color:var(--live-highlight);}
+.skin-preview {padding:30px;border:1px solid;border-radius:28px;margin:28px 0;position:relative;overflow:hidden;}
+.skin-preview::before {content:'';position:absolute;width:340px;height:140px;border:1px solid currentColor;opacity:.12;transform:rotate(-28deg);border-radius:50%;right:-80px;top:0;pointer-events:none;}
+.skin-preview h2 {font-size:clamp(23px,4vw,32px);margin-bottom:8px;}
+.skin-preview small {font-size:10px;letter-spacing:1px;}
+.skin-preview .row {flex-wrap:nowrap;margin:16px 0;}
+.style-avatar {width:44px;height:44px;display:inline-grid;place-items:center;flex:none;border-radius:50%;background:#ffffff12;font-size:18px;font-weight:700;}
+.style-categories {gap:8px;margin:28px 0 10px;}
+.style-categories button {margin:0;padding:12px 18px;border-radius:99px;font-size:13px;}
+.style-categories [aria-pressed=true] {border-color:var(--live-highlight);color:var(--live-highlight);}
+.style-catalog {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;}
+.style-product.card {margin:0;padding:20px;min-width:0;display:flex;flex-direction:column;}
+.style-product.style-active {border-color:var(--live-highlight);}
+.style-swatch {display:grid;place-items:center;height:120px;border-radius:16px;font-size:36px;font-weight:700;margin-bottom:20px;}
+.style-product h2 {font-size:20px;margin:0;letter-spacing:-.5px;}
+.style-product p {font-size:13px;min-height:45px;margin-bottom:12px;}
+.style-product small {display:block;margin:auto 0 12px;}
+.style-product button {width:100%;font-size:13px;margin:6px 0 0;padding:12px;}
+.style-product button:disabled {cursor:not-allowed;}
+#styleStatus {min-height:28px;color:var(--live-highlight);}
+@media(max-width:900px){.style-catalog {grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:580px){.style-catalog {grid-template-columns:1fr;}.skin-preview {padding:24px;}.style-shop>h1 {letter-spacing:-1.5px;}.style-categories {gap:7px;}.style-categories button {padding:10px 13px;font-size:12px;}}

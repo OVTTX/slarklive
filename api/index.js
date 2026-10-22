@@ -1,10 +1,11 @@
+import {styleAction} from './styles.js';
 import {soloAction} from './solo.js';
 import {fixedTeamCode} from './team-codes.js';
 import {initTournament,controlTournament,tournamentView,extraQuestion,teamLabel} from './tournament.js';
 import {randomInt,randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 import {transact} from './store.js';
 import {fail,validateDeck,summary,teacherView,answer,results,traits} from './domain.js';
-import {accountInfo,studentCatalog,teacherInfo,catalog,loadTeams,saveObservation,withSlarkSession} from './slark.js';
+import {accountInfo,studentCatalog,teacherInfo,catalog,loadTeams,saveObservation,withSlarkSession,accountWins} from './slark.js';
 const attempts=new Map();
 function sign(x){return createHmac('sha256',process.env.SESSION_SECRET||'').update(x).digest('hex');}
 function equal(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
@@ -41,6 +42,12 @@ async function handler(req,res){
  const isStudent=profile?.perfil==='aluno';
  const owner=isStudent?null:accountId;
  if(action==='session')return res.end(JSON.stringify({authenticated:!!accountId,admin:!!owner,student:isStudent,role:profile?.perfil,name:profile?.nome,avatar:profile?.avatar_url,demo:owner==='demo',demoEnabled:process.env.ENABLE_DEMO==='1'}));
+ if(action==='styles'){
+  if(!accountId)fail('Entre com sua conta Slark.',401);
+  const wins=profile&&process.env.SLARKLIVE_DATABASE_SCHEMA!=='slarklive_preview_private'?await accountWins():0;
+  const result=await transact(s=>styleAction(s,{profile:profile||{id:accountId},wins,method:req.method,body:b}));
+  return res.end(JSON.stringify(result));
+ }
  if(action==='catalog'){if(!accountId)fail('Entre com sua conta Slark.',401);return res.end(JSON.stringify(accountId==='demo'?[{id:'demo-trail',titulo:'Runaway · Produção e consumo',sala_id:'demo'}]:await studentCatalog(accountId)));}
  if(action.startsWith('solo-')){
   if(!accountId)fail('Entre com sua conta Slark.',401);
