@@ -36,6 +36,7 @@ async function handler(req,res){
  }
  if(action==='logout'){res.setHeader('Set-Cookie',['slark_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0','slark_access=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0']);return res.end('{}');}
  const accountId=identity(req);
+ if(['join','state','answer'].includes(action)&&!accountId)fail('Entre com sua conta Slark para participar do Live Room.',401);
  const profile=accountId&&accountId!=='demo'?await accountInfo(accountId):null;
  const isStudent=profile?.perfil==='aluno';
  const owner=isStudent?null:accountId;

@@ -15,20 +15,21 @@ test('sala mesclada, quarteto único, sigilo, controle, respostas e observação
  const c=await call('create',{name:'Aula',trailId:'demo-trail',chapter:'1',items},true);assert.equal(c.status,200);const pin=c.data.pin,code=c.data.teams[0].code;
  const second=await call('create',{name:'Outra aula',trailId:'demo-trail',chapter:'2',items},true);assert.equal(second.status,200);assert.equal(second.data.teams[0].code,code);assert.match(code,/^[0-9]{6}$/);
  const emptyLobby=await call('room',null,false,{pin});assert.deepEqual(emptyLobby.data.lobbyTeams,[]);
- const join=await call('join',{pin,teamCode:code});const token=join.data.token;assert.equal(join.status,200);assert.equal((await call('join',{pin,teamCode:code})).status,409);assert.equal((await call('join',{pin,teamCode:code,token})).status,200);
+ assert.equal((await call('join',{pin,teamCode:code})).status,401);assert.equal((await call('state',null,false,{pin,token:'invalid'})).status,401);assert.equal((await call('answer',{pin,token:'invalid',option:0})).status,401);
+ const join=await call('join',{pin,teamCode:code},true);const token=join.data.token;assert.equal(join.status,200);assert.equal((await call('join',{pin,teamCode:code},true)).status,409);assert.equal((await call('join',{pin,teamCode:code,token},true)).status,200);
  const lobby=await call('room',null,false,{pin});assert.deepEqual(lobby.data.lobbyTeams,[{name:c.data.teams[0].name}]);assert(!JSON.stringify(lobby.data).includes(code));assert(!JSON.stringify(lobby.data).includes('Estudante fictício'));
  assert.equal((await call('teacher',null,false,{pin})).status,403);assert.equal((await call('control',{pin,command:'start'})).status,403);
  await call('control',{pin,command:'start'},true);await call('control',{pin,command:'next'},true);
- const state=await call('state',null,false,{pin,token});assert.equal(state.data.item.correct,undefined);assert.equal(state.data.item.explanation,undefined);
- assert.equal((await call('answer',{pin,token,option:0})).status,400);await call('control',{pin,command:'open'},true);
- const concurrent=await Promise.all([call('answer',{pin,token,option:0}),call('answer',{pin,token,option:1})]);assert.deepEqual(concurrent.map(x=>x.status).sort(),[200,409]);
+ const state=await call('state',null,true,{pin,token});assert.equal(state.data.item.correct,undefined);assert.equal(state.data.item.explanation,undefined);
+ assert.equal((await call('answer',{pin,token,option:0},true)).status,400);await call('control',{pin,command:'open'},true);
+ const concurrent=await Promise.all([call('answer',{pin,token,option:0},true),call('answer',{pin,token,option:1},true)]);assert.deepEqual(concurrent.map(x=>x.status).sort(),[200,409]);
  const student=c.data.teams[0].members[0].id;
  assert.equal((await call('observe',{pin,student,trait:'Observador',text:'Percebeu a relação entre produção e oferta.'})).status,403);
  assert.equal((await call('observe',{pin,student:'outsider',trait:'Observador',text:'Percebeu a relação entre produção e oferta.'},true)).status,400);
  assert.equal((await call('observe',{pin,student,trait:'Observador',text:'Percebeu a relação entre produção e oferta.'},true)).status,200);
  assert.equal((await call('control',{pin,command:'next'},true)).status,400);await call('control',{pin,command:'reveal'},true);
- const revealed=await call('state',null,false,{pin,token});assert.equal(revealed.data.item.correct,0);assert.equal(revealed.data.results.length,1);
+ const revealed=await call('state',null,true,{pin,token});assert.equal(revealed.data.item.correct,0);assert.equal(revealed.data.results.length,1);
  const screen=await call('room',null,false,{pin});assert.equal(JSON.stringify(screen.data).includes(code),false);assert.equal(screen.data.observations,undefined);
- assert.equal((await call('control',{pin,command:'next'},true)).status,400);await call('control',{pin,command:'close'},true);assert.equal((await call('state',null,false,{pin,token})).data.status,'closed');assert.equal((await call('answer',{pin,token,option:0})).status,400);
+ assert.equal((await call('control',{pin,command:'next'},true)).status,400);await call('control',{pin,command:'close'},true);assert.equal((await call('state',null,true,{pin,token})).data.status,'closed');assert.equal((await call('answer',{pin,token,option:0},true)).status,400);
  }finally{child.kill();await once(child,'exit');await rm(dir,{recursive:true,force:true});}
 });
