@@ -3,9 +3,9 @@ import {fail} from './domain.js';
 const context=new AsyncLocalStorage();
 export const withSlarkSession=(token,fn)=>context.run(token,fn);
 function credentials(){if(!process.env.SUPABASE_URL||!process.env.SUPABASE_PUBLISHABLE_KEY)fail('Autenticação da Slark não configurada.',503);const token=context.getStore();if(!token)fail('Entre novamente com sua conta da Slark.',401);return {apikey:process.env.SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'};}
-async function rest(table,query={},method='GET',body){
+async function rest(table,query={},method='GET',body,prefer='return=representation'){
  const url=new URL(process.env.SUPABASE_URL+'/rest/v1/'+table);for(const [k,v] of Object.entries(query))url.searchParams.set(k,String(v));
- const r=await fetch(url,{method,headers:{...credentials(),Prefer:'return=representation'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});const data=await r.json();if(!r.ok)fail(r.status===401?'Sua sessão expirou. Entre novamente.':'Sua conta não tem permissão para esta operação na Slark.',r.status===401?401:403);return data;
+ const r=await fetch(url,{method,headers:{...credentials(),Prefer:prefer},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});const data=await r.json();if(!r.ok)fail(r.status===401?'Sua sessão expirou. Entre novamente.':'Sua conta não tem permissão para esta operação na Slark.',r.status===401?401:403);return data;
 }
 export async function accountInfo(id){
  const r=await fetch(process.env.SUPABASE_URL+'/auth/v1/user',{headers:credentials(),signal:AbortSignal.timeout(10000)});const user=await r.json();if(!r.ok||user.id!==id)fail('Sessão da Slark inválida ou expirada.',401);
@@ -36,3 +36,10 @@ export async function studentCatalog(id){
 }
 
 export async function accountWins(){return Number(await rest('rpc/slarklive_minhas_vitorias',{},'POST',{}));}
+
+export async function loadLiveStyle(id){return (await rest('personalizacoes_slarklive',{select:'skin,texto,moldura',usuario_id:'eq.'+id}))[0]||null;}
+export async function saveLiveStyle(id,preferencias){
+ const rows=await rest('personalizacoes_slarklive',{on_conflict:'usuario_id'},'POST',{usuario_id:id,...preferencias},'resolution=merge-duplicates,return=representation');
+ if(!rows[0])fail('Não foi possível salvar o estilo. Tente novamente.',503);
+ return rows[0];
+}

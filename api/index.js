@@ -5,7 +5,7 @@ import {initTournament,controlTournament,tournamentView,extraQuestion,teamLabel}
 import {randomInt,randomUUID,createHmac,timingSafeEqual} from 'node:crypto';
 import {transact} from './store.js';
 import {fail,validateDeck,summary,teacherView,answer,results,traits} from './domain.js';
-import {accountInfo,studentCatalog,teacherInfo,catalog,loadTeams,saveObservation,withSlarkSession,accountWins} from './slark.js';
+import {accountInfo,studentCatalog,teacherInfo,catalog,loadTeams,saveObservation,withSlarkSession,accountWins,loadLiveStyle,saveLiveStyle} from './slark.js';
 const attempts=new Map();
 function sign(x){return createHmac('sha256',process.env.SESSION_SECRET||'').update(x).digest('hex');}
 function equal(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
@@ -44,8 +44,15 @@ async function handler(req,res){
  if(action==='session')return res.end(JSON.stringify({authenticated:!!accountId,admin:!!owner,student:isStudent,role:profile?.perfil,name:profile?.nome,avatar:profile?.avatar_url,demo:owner==='demo',demoEnabled:process.env.ENABLE_DEMO==='1'}));
  if(action==='styles'){
   if(!accountId)fail('Entre com sua conta Slark.',401);
-  const wins=profile&&process.env.SLARKLIVE_DATABASE_SCHEMA!=='slarklive_preview_private'?await accountWins():0;
-  const result=await transact(s=>styleAction(s,{profile:profile||{id:accountId},wins,method:req.method,body:b}));
+  // Account appearance uses the authenticated profile store, not room transactions.
+  let result;
+  if(profile){
+   const [wins,saved]=await Promise.all([process.env.SLARKLIVE_DATABASE_SCHEMA==='slarklive_preview_private'?0:accountWins(),loadLiveStyle(accountId)]);
+   result=styleAction({styles:{[accountId]:saved}},{profile,wins,method:req.method,body:b});
+   if(req.method==='POST')await saveLiveStyle(accountId,result.preferencias);
+  }else{
+   result=await transact(s=>styleAction(s,{profile:{id:accountId},wins:0,method:req.method,body:b}));
+  }
   return res.end(JSON.stringify(result));
  }
  if(action==='catalog'){if(!accountId)fail('Entre com sua conta Slark.',401);return res.end(JSON.stringify(accountId==='demo'?[{id:'demo-trail',titulo:'Runaway · Produção e consumo',sala_id:'demo'}]:await studentCatalog(accountId)));}
